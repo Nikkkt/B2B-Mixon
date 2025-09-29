@@ -16,7 +16,7 @@ function App() {
         <Route path="/password-reset" element={<PasswordReset />} />
         <Route path="/set-new-password" element={<SetNewPassword />} />
         <Route path="/confirm-registration" element={<ConfirmRegistration />} />
-        <Route path="/home" element={<Home />} />
+        <Route path="/home" element={<Home />}/>
       </Routes>
     </BrowserRouter>
   );
