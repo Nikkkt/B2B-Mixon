@@ -1,15 +1,23 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+
 import AuthLayout from "../components/AuthLayout";
 
 export default function Login() {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    navigate("/home");
+  };
 
   useEffect(() => {
     if (location.state?.fromRegistration) {
       setShowSuccessMessage(true);
       const timer = setTimeout(() => setShowSuccessMessage(false), 5000);
+
       return () => clearTimeout(timer);
     }
   }, [location]);
@@ -34,7 +42,7 @@ export default function Login() {
           Вітаємо! Ваш аккаунт успішно підтверджено. Тепер ви можете увійти.
         </div>
       )}
-      <form className="space-y-4 mt-16">
+      <form className="space-y-4 mt-16" onSubmit={handleSubmit}>
         <input
           type="email"
           placeholder="Пошта"
@@ -54,9 +62,6 @@ export default function Login() {
         <button
           type="submit"
           className="w-full rounded-lg bg-blue-600 p-3 text-white text-sm sm:text-base transition hover:bg-blue-700"
-          onClick={() => {
-            window.location.href = "/home";
-          }}
         >
           Увійти
         </button>
