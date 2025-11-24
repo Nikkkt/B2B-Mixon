@@ -1,63 +1,107 @@
-// src/pages/Orders.jsx
-
-import { useState, useEffect } from "react";
-import { FaShoppingCart } from "react-icons/fa"; 
+import { useEffect, useMemo, useState } from "react";
+import { FaShoppingCart, FaFilter, FaListOl } from "react-icons/fa";
+import Select from "react-select";
 import HomeLayout from "../components/HomeLayout";
-import Select from 'react-select'; 
 import { useCart } from "../context/CartContext.jsx";
+import { fetchOrderDirections, fetchOrderGroups, fetchOrderProducts } from "../api/ordersApi";
+import { useNotifications } from "../context/NotificationContext.jsx";
 
-// --- Імітація API / Бекенду (без змін) ---
-const mockDirections = [
-  { id: 'dir1', name: '01 - Car Refinish - для покраски авто' },
-  { id: 'dir2', name: '02 - Building Materials - будівельні' },
-  { id: 'dir3', name: '03 - Industrial - промислові' }
-];
-const mockGroups = [
-  { id: 'group1', name: '100 - MIXON - CAR REFINISH', directionId: 'dir1' },
-  { id: 'group2', name: '101 - SOUDAL - CAR REFINISH', directionId: 'dir1' },
-  { id: 'group3', name: '200 - CERESIT - BUILDING', directionId: 'dir2' },
-  { id: 'group4', name: '201 - KNAUF - BUILDING', directionId: 'dir2' },
-  { id: 'group5', name: '300 - TIKKURILA - INDUSTRIAL', directionId: 'dir3' },
-];
-const moreProductsForGroup1 = [
-  { id: 1, code: "105-01-2", name: "Універсальна шпаклівка MIXON-UNI 2кг", availability: "300.00", order: "0", price: "300.00", discount: 0, priceWithDiscount: "300.00", weight: "2.185", volume: "3.000" },
-  { id: 2, code: "3000-01-2", name: "Універсальна шпаклівка MIXON-3000 2кг", availability: "", order: "0", price: "233.10", discount: 0, priceWithDiscount: "233.10", weight: "2.185", volume: "3.000" },
-  { id: 3, code: "106-01-2", name: "Шпаклівка алюмінієва MIXON-ALU 1,8кг", availability: "", order: "0", price: "296.00", discount: 0, priceWithDiscount: "296.00", weight: "1.985", volume: "3.000" },
-  { id: 4, code: "107-01-2", name: "Шпаклівка со стекловолокном MIXON-FIBER 1,8кг", availability: "", order: "0", price: "259.00", discount: 0, priceWithDiscount: "259.00", weight: "1.905", volume: "3.000" },
-  { id: 5, code: "301-01-1", name: "Акриловий грунт MIXON 3+1 сірий 1л", availability: "", order: "0", price: "299.70", discount: 0, priceWithDiscount: "299.70", weight: "1.770", volume: "3.000" },
-  { id: 6, code: "301-02-1", name: "Акриловий грунт MIXON 3+1 білий 1л", availability: "", order: "0", price: "299.70", discount: 0, priceWithDiscount: "299.70", weight: "1.770", volume: "3.000" },
-  { id: 7, code: "301-03-1", name: "Акриловий грунт MIXON 3+1 чорний 1л", availability: "2.00", order: "0", price: "299.70", discount: 0, priceWithDiscount: "299.70", weight: "1.770", volume: "3.000" },
-  { id: 8, code: "301-04-1", name: "Акриловий грунт MIXON 3+1 жовтий 1л", availability: "4.00", order: "0", price: "299.70", discount: 0, priceWithDiscount: "299.70", weight: "1.770", volume: "3.000" },
-  { id: 9, code: "301-05-1", name: "Акриловий грунт MIXON 3+1 красный 1л", availability: "", order: "0", price: "299.70", discount: 0, priceWithDiscount: "299.70", weight: "1.770", volume: "3.000" },
-  { id: 10, code: "311-01-03", name: "Затверджувач MIXON 3+1 330мл", availability: "0.00", order: "0", price: "118.40", discount: 0, priceWithDiscount: "118.40", weight: "0.393", volume: "3.000" },
-  { id: 11, code: "105-01-3", name: "Універсальна шпаклівка MIXON-UNI 2кг (Copy)", availability: "300.00", order: "0", price: "300.00", discount: 0, priceWithDiscount: "300.00", weight: "2.185", volume: "3.000" },
-  { id: 12, code: "3000-01-3", name: "Універсальна шпаклівка MIXON-3000 2кг (Copy)", availability: "", order: "0", price: "233.10", discount: 0, priceWithDiscount: "233.10", weight: "2.185", volume: "3.000" },
-  { id: 13, code: "106-01-3", name: "Шпаклівка алюмінієва MIXON-ALU 1,8кг (Copy)", availability: "", order: "0", price: "296.00", discount: 0, priceWithDiscount: "296.00", weight: "1.985", volume: "3.000" },
-  { id: 14, code: "107-01-3", name: "Шпаклівка со стекловолокном MIXON-FIBER 1,8кг (Copy)", availability: "", order: "0", price: "259.00", discount: 0, priceWithDiscount: "259.00", weight: "1.905", volume: "3.000" },
-  { id: 15, code: "301-01-2", name: "Акриловий грунт MIXON 3+1 сірий 1л (Copy)", availability: "", order: "0", price: "299.70", discount: 0, priceWithDiscount: "299.70", weight: "1.770", volume: "3.000" },
-  { id: 16, code: "301-02-2", name: "Акриловий грунт MIXON 3+1 білий 1л (Copy)", availability: "", order: "0", price: "299.70", discount: 0, priceWithDiscount: "299.70", weight: "1.770", volume: "3.000" },
-  { id: 17, code: "301-03-2", name: "Акриловий грунт MIXON 3+1 чорний 1л (Copy)", availability: "2.00", order: "0", price: "299.70", discount: 0, priceWithDiscount: "299.70", weight: "1.770", volume: "3.000" },
-  { id: 18, code: "301-04-2", name: "Акриловий грунт MIXON 3+1 жовтий 1л (Copy)", availability: "4.00", order: "0", price: "299.70", discount: 0, priceWithDiscount: "299.70", weight: "1.770", volume: "3.000" },
-  { id: 19, code: "301-05-2", name: "Акриловий грунт MIXON 3+1 красный 1л (Copy)", availability: "", order: "0", price: "299.70", discount: 0, priceWithDiscount: "299.70", weight: "1.770", volume: "3.000" },
-  { id: 20, code: "311-01-04", name: "Затверджувач MIXON 3+1 330мл (Copy)", availability: "0.00", order: "0", price: "118.40", discount: 0, priceWithDiscount: "118.40", weight: "0.393", volume: "3.000" },
-];
-const mockProducts = {
-  group1: moreProductsForGroup1, 
-  group2: [ { id: 21, code: "S-101-1", name: "Піна монтажна SOUDAL", availability: "50.00", order: "0", price: "150.00", discount: 0, priceWithDiscount: "150.00", weight: "0.800", volume: "1.000" } ],
-  group3: [ { id: 22, code: "C-50-5", name: "Клей для плитки CERESIT CM 11, 25кг", availability: "1000.00", order: "0", price: "350.00", discount: 0, priceWithDiscount: "350.00", weight: "25.000", volume: "20.000" } ],
-  group4: [],
-  group5: [ { id: 23, code: "T-99-1", name: "Фарба промислова TIKKURILA, 20л", availability: "40.00", order: "0", price: "5500.00", discount: 0, priceWithDiscount: "5500.00", weight: "30.000", volume: "20.000" } ]
+const toDirectionLabel = (direction) => direction?.displayName?.trim()
+  || direction?.title
+  || direction?.code
+  || direction?.name
+  || "—";
+
+const toGroupLabel = (group) => {
+  const parts = [group?.groupNumber, group?.name].filter(Boolean);
+  return parts.length ? parts.join(" - ") : group?.name || "—";
 };
-const fakeApiCall = (data) => new Promise(resolve => {
-  setTimeout(() => resolve(data), 500);
+
+const mapProductFromApi = (product) => ({
+  id: product.id,
+  code: product.code,
+  name: product.name,
+  availability: product.availability != null ? product.availability.toString() : "",
+  price: Number(product.price ?? 0),
+  priceWithDiscount: Number(product.priceWithDiscount ?? product.price ?? 0),
+  discount: Number(product.discountPercent ?? 0),
+  weight: Number(product.weight ?? 0),
+  volume: Number(product.volume ?? 0),
+  groupSerial: product.groupSerial ?? 0,
 });
-// --- Кінець імітації API ---
+
+const parseOrderQuantity = (value) => {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+
+  const normalized = parseFloat(String(value).replace(',', '.'));
+  return Number.isNaN(normalized) ? 0 : normalized;
+};
 
 const customSelectStyles = {
-  control: (provided, state) => ({ ...provided, backgroundColor: 'rgb(249 250 251)', border: '1px solid rgb(209 213 219)', borderRadius: '0.375rem', padding: '0.3rem', boxShadow: state.isFocused ? '0 0 0 2px rgb(59 130 246)' : 'none', '&:hover': { borderColor: 'rgb(156 163 175)', } }),
-  option: (provided, state) => ({ ...provided, backgroundColor: state.isSelected ? 'rgb(59 130 246)' : (state.isFocused ? 'rgb(243 244 246)' : 'white'), color: state.isSelected ? 'white' : 'rgb(17 24 39)', }),
-  placeholder: (provided) => ({ ...provided, color: 'rgb(107 114 128)', }),
-  singleValue: (provided) => ({ ...provided, color: 'rgb(17 24 39)', }),
+  control: (provided, state) => ({
+    ...provided,
+    minHeight: '46px',
+    borderRadius: '0.85rem',
+    border: state.isFocused ? '2px solid rgb(37 99 235)' : '1px solid rgba(59, 130, 246, 0.35)',
+    background: 'linear-gradient(135deg, rgba(239,246,255,0.9), rgba(219,234,254,0.7))',
+    boxShadow: state.isFocused ? '0 0 0 3px rgba(59,130,246,0.25)' : '0 1px 4px rgba(15, 23, 42, 0.06)',
+    paddingLeft: '0.35rem',
+    transition: 'all 150ms ease',
+    '&:hover': {
+      borderColor: 'rgba(59,130,246,0.7)'
+    }
+  }),
+  valueContainer: (provided) => ({
+    ...provided,
+    padding: '0.25rem 0.75rem'
+  }),
+  input: (provided) => ({
+    ...provided,
+    color: 'rgb(30, 64, 175)'
+  }),
+  placeholder: (provided) => ({
+    ...provided,
+    color: 'rgba(59, 130, 246, 0.8)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    fontSize: '0.7rem'
+  }),
+  singleValue: (provided) => ({
+    ...provided,
+    color: 'rgb(15, 23, 42)',
+    fontWeight: 600
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    backgroundColor: state.isSelected
+      ? 'rgba(59,130,246,0.18)'
+      : state.isFocused
+        ? 'rgba(59,130,246,0.12)'
+        : 'white',
+    color: state.isSelected ? 'rgb(37, 99, 235)' : 'rgb(15, 23, 42)',
+    borderRadius: '0.5rem',
+    padding: '0.55rem 0.75rem',
+  }),
+  menu: (provided) => ({
+    ...provided,
+    borderRadius: '1rem',
+    padding: '0.35rem',
+    boxShadow: '0 15px 35px rgba(15,23,42,0.12)'
+  }),
+  menuList: (provided) => ({
+    ...provided,
+    borderRadius: '0.6rem',
+    padding: '0.2rem'
+  }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  dropdownIndicator: (provided, state) => ({
+    ...provided,
+    color: state.isFocused ? 'rgb(37,99,235)' : 'rgba(15,23,42,0.4)',
+    transition: 'color 150ms ease',
+    '&:hover': { color: 'rgb(37,99,235)' }
+  })
 };
 
 
@@ -65,55 +109,139 @@ export default function Orders() {
   const [directions, setDirections] = useState([]);
   const [groups, setGroups] = useState([]);
   const [products, setProducts] = useState([]);
-  const [selectedDirection, setSelectedDirection] = useState(null); 
-  const [selectedGroup, setSelectedGroup] = useState(null);       
+  const [selectedDirection, setSelectedDirection] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [orderQuantities, setOrderQuantities] = useState({});
+  const [errorMessage, setErrorMessage] = useState(null);
   const { addItem, openDrawer } = useCart();
+  const { warning, success, error: notifyError } = useNotifications();
+
+  const directionOptions = useMemo(() => directions.map((direction) => ({
+    value: direction.id,
+    label: toDirectionLabel(direction),
+  })), [directions]);
+
+  const groupOptions = useMemo(() => groups.map((group) => ({
+    value: group.id,
+    label: toGroupLabel(group),
+  })), [groups]);
+
+  const activeDirectionName = useMemo(() => {
+    const found = directions.find((direction) => direction.id === selectedDirection);
+    return found ? toDirectionLabel(found) : null;
+  }, [directions, selectedDirection]);
+
+  const activeGroupName = useMemo(() => {
+    const found = groups.find((group) => group.id === selectedGroup);
+    return found ? toGroupLabel(found) : null;
+  }, [groups, selectedGroup]);
 
   useEffect(() => {
-    fakeApiCall(mockDirections).then(data => {
-      setDirections(data);
-    });
+    let isMounted = true;
+    const loadDirections = async () => {
+      try {
+        setErrorMessage(null);
+        const response = await fetchOrderDirections();
+        if (!isMounted) {
+          return;
+        }
+        setDirections(response ?? []);
+      } catch (error) {
+        if (isMounted) {
+          setErrorMessage(error.message ?? "Не вдалося завантажити направлення");
+          setDirections([]);
+        }
+      }
+    };
+
+    loadDirections();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
-    if (selectedDirection) {
-      setIsLoadingGroups(true);
-      setProducts([]);
-      setSelectedGroup(null); 
-      setOrderQuantities({});
-      fakeApiCall(mockGroups.filter(g => g.directionId === selectedDirection))
-        .then(data => {
-          setGroups(data);
-          setIsLoadingGroups(false);
-        });
-    } else {
+    if (!selectedDirection) {
       setGroups([]);
       setProducts([]);
       setSelectedGroup(null);
       setOrderQuantities({});
+      return;
     }
+
+    let isMounted = true;
+    const loadGroups = async () => {
+      try {
+        setIsLoadingGroups(true);
+        setErrorMessage(null);
+        setProducts([]);
+        setSelectedGroup(null);
+        setOrderQuantities({});
+        const response = await fetchOrderGroups(selectedDirection);
+        if (!isMounted) {
+          return;
+        }
+        setGroups(response ?? []);
+      } catch (error) {
+        if (isMounted) {
+          setErrorMessage(error.message ?? "Не вдалося завантажити групи");
+          setGroups([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingGroups(false);
+        }
+      }
+    };
+
+    loadGroups();
+    return () => {
+      isMounted = false;
+    };
   }, [selectedDirection]);
 
   useEffect(() => {
-    if (selectedGroup) {
-      setIsLoadingProducts(true);
-      fakeApiCall(mockProducts[selectedGroup] || [])
-        .then(data => {
-          setProducts(data);
-          const initialQuantities = {};
-          data.forEach(product => {
-            initialQuantities[product.id] = product.order;
-          });
-          setOrderQuantities(initialQuantities);
-          setIsLoadingProducts(false);
-        });
-    } else {
+    if (!selectedGroup) {
       setProducts([]);
       setOrderQuantities({});
+      return;
     }
+
+    let isMounted = true;
+    const loadProducts = async () => {
+      try {
+        setIsLoadingProducts(true);
+        setErrorMessage(null);
+        const response = await fetchOrderProducts(selectedGroup);
+        if (!isMounted) {
+          return;
+        }
+        const mapped = (response ?? []).map(mapProductFromApi);
+        const initialQuantities = mapped.reduce((acc, product) => {
+          acc[product.id] = "";
+          return acc;
+        }, {});
+        setProducts(mapped);
+        setOrderQuantities(initialQuantities);
+      } catch (error) {
+        if (isMounted) {
+          setErrorMessage(error.message ?? "Не вдалося завантажити товари");
+          setProducts([]);
+          setOrderQuantities({});
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingProducts(false);
+        }
+      }
+    };
+
+    loadProducts();
+    return () => {
+      isMounted = false;
+    };
   }, [selectedGroup]);
 
   const handleQuantityChange = (productId, value) => {
@@ -125,136 +253,238 @@ export default function Orders() {
     }
   };
 
-  const handleAddToCart = (productId) => {
+  const hasBulkSelection = useMemo(() => (
+    products.some(product => parseOrderQuantity(orderQuantities[product.id]) > 0)
+  ), [products, orderQuantities]);
+
+  const handleBulkAddToCart = async () => {
+    const itemsToAdd = products
+      .map((product) => ({
+        product,
+        quantity: parseOrderQuantity(orderQuantities[product.id])
+      }))
+      .filter((entry) => entry.quantity > 0);
+
+    if (itemsToAdd.length === 0) {
+      warning("Вкажіть кількість хоча б для одного товару");
+      return;
+    }
+
+    try {
+      for (const entry of itemsToAdd) {
+        await addItem(entry.product, entry.quantity);
+      }
+
+      openDrawer();
+      success(`Додано ${itemsToAdd.length} поз. до кошика`);
+    } catch (error) {
+      console.error("Failed to bulk add products:", error);
+      notifyError("Не вдалося додати товари до кошика");
+    }
+  };
+
+  const handleAddToCart = async (productId) => {
     const quantity = orderQuantities[productId] || 0;
     const product = products.find(p => p.id === productId);
     const numQuantity = parseFloat(quantity);
     if (!numQuantity || numQuantity <= 0) {
-      alert("Будь ласка, введіть кількість для замовлення");
+      warning("Будь ласка, введіть кількість для замовлення");
       return;
     }
-    addItem(product, numQuantity);
-    openDrawer();
-    alert(`Додано в корзину: ${product.name}, Кількість: ${quantity}`);
-  };
-
-  const formatOptions = (data) => {
-    return data.map(item => ({
-      value: item.id,
-      label: item.name
-    }));
+    try {
+      await addItem(product, numQuantity);
+      openDrawer();
+      success(`Додано до кошика: ${product.name} (×${quantity})`);
+    } catch (error) {
+      console.error("Failed to add product to cart:", error);
+      notifyError("Не вдалося додати товар до кошика");
+    }
   };
 
   return (
     <HomeLayout>
-      {/* Оновлено батьківський div:
-        - `flex-1` та `flex-col` дозволяють йому заповнити простір,
-          який надає `main` з HomeLayout.
-        - `overflow-hidden` запобігає дивному подвійному скролу.
-      */}
       <div className="bg-white p-4 md:p-6 rounded-lg shadow-lg flex-1 flex flex-col overflow-hidden">
-        
-        {/* --- Секція фільтрів (без змін) --- */}
         <nav className="text-sm text-gray-500 mb-4" aria-label="Breadcrumb">
-          {/* ... хлібні крихти ... */}
           <ol className="list-none p-0 inline-flex">
             <li className="flex items-center">
               <a href="/home" className="text-blue-600 hover:underline">Головна</a>
             </li>
             <li className="flex items-center mx-2">/</li>
             <li className="flex items-center">
-              <span className="text-gray-700">Заказ товарів</span> 
+              <span className="text-gray-700">Замовлення товарів</span> 
             </li>
           </ol>
         </nav>
         <h2 className="text-2xl font-bold text-gray-800 mb-6">
-          Заказ товарів
+          Замовлення товарів
         </h2>
-        <div className="max-w-lg">
-          <form>
-            <div className="mb-4">
-              <label htmlFor="direction" className="block text-sm font-medium text-gray-700 mb-1">Товарное направление*</label>
-              <Select
-                id="direction"
-                styles={customSelectStyles}
-                options={formatOptions(directions)}
-                isClearable isSearchable
-                placeholder="-- Оберіть направлення --"
-                onChange={option => setSelectedDirection(option ? option.value : null)}
-                value={formatOptions(directions).find(o => o.value === selectedDirection)}
-              />
+        <div className="grid gap-6 lg:grid-cols-[3fr_2fr] mb-1">
+          <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/70 via-white to-blue-50 p-5 shadow-inner">
+            <div className="mb-4 flex items-center gap-3 text-blue-900">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                <FaFilter />
+              </span>
+              <div>
+                <p className="text-base font-semibold">Крок 1 — фільтри</p>
+                <p className="text-xs text-blue-700/80">Оберіть напрям і групу, щоб побачити доступні товари.</p>
+              </div>
             </div>
-            <div className="mb-4">
-              <label htmlFor="group" className="block text-sm font-medium text-gray-700 mb-1">Группы товара*</label>
-              <Select
-                id="group"
-                styles={customSelectStyles}
-                options={formatOptions(groups)}
-                isClearable isSearchable
-                placeholder={isLoadingGroups ? "Завантаження груп..." : (selectedDirection ? "-- Оберіть групу --" : "-- Спочатку оберіть направлення --")}
-                onChange={option => setSelectedGroup(option ? option.value : null)}
-                value={formatOptions(groups).find(o => o.value === selectedGroup)}
-                isDisabled={!selectedDirection || isLoadingGroups}
-                isLoading={isLoadingGroups}
-              />
+            <form className="space-y-3">
+              <div>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="direction" className="block text-sm font-medium text-gray-700 mb-2">Товарний напрям</label>
+                  <span className="text-xs text-gray-400">обов'язково</span>
+                </div>
+                <Select
+                  id="direction"
+                  styles={customSelectStyles}
+                  options={directionOptions}
+                  isClearable isSearchable
+                  placeholder="-- Оберіть направлення --"
+                  onChange={option => setSelectedDirection(option ? option.value : null)}
+                  value={directionOptions.find(o => o.value === selectedDirection) ?? null}
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="group" className="block text-sm font-medium text-gray-700 mb-2">Групи товарів</label>
+                  <span className="text-xs text-gray-400">на основі напрямку</span>
+                </div>
+                <Select
+                  id="group"
+                  styles={customSelectStyles}
+                  options={groupOptions}
+                  isClearable isSearchable
+                  placeholder={isLoadingGroups ? "Завантаження груп..." : (selectedDirection ? "-- Оберіть групу --" : "-- Спочатку оберіть напрям --")}
+                  onChange={option => setSelectedGroup(option ? option.value : null)}
+                  value={groupOptions.find(o => o.value === selectedGroup) ?? null}
+                  isDisabled={!selectedDirection || isLoadingGroups}
+                  isLoading={isLoadingGroups}
+                />
+              </div>
+            </form>
+            {errorMessage && (
+              <p className="mt-3 rounded-lg border border-red-100 bg-red-50/80 px-3 py-2 text-sm text-red-700" role="alert">{errorMessage}</p>
+            )}
+          </div>
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-5 shadow-inner">
+            <div className="flex items-center gap-3 text-emerald-900">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                <FaListOl />
+              </span>
+              <div className="flex-1 flex flex-col justify-center gap-1">
+                <p className="text-base font-semibold">Крок 2 — додайте у кошик</p>
+                <p className="text-xs text-emerald-800/80 leading-relaxed">Після завантаження списку вкажіть кількість і підтвердіть.</p>
+              </div>
             </div>
-          </form>
+            <ul className="mt-4 space-y-5 text-sm text-emerald-900">
+              <li className="flex gap-3">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-emerald-700 font-semibold text-xs">1</span>
+                <div>
+                  <p className="font-semibold">Оберіть напрямок</p>
+                  <p className="text-xs text-emerald-700/80">Система підготує лише релевантні групи.</p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-emerald-700 font-semibold text-xs">2</span>
+                <div>
+                  <p className="font-semibold">Вкажіть групу товарів</p>
+                  <p className="text-xs text-emerald-700/80">Отримаєте перелік позицій та залишків.</p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-emerald-700 font-semibold text-xs">3</span>
+                <div>
+                  <p className="font-semibold">Заповніть кількість</p>
+                  <p className="text-xs text-emerald-700/80">Додавайте по одній або одразу кілька позицій.</p>
+                </div>
+              </li>
+            </ul>
+          </div>
         </div>
-        {/* --- Секція з контентом (оновлена) --- */}
+
         {isLoadingProducts ? (
           <p className="mt-8 text-center text-gray-600">Завантаження товарів...</p>
         ) : products.length > 0 ? (
-          // flex-1 та overflow-auto тепер тут, щоб скрол був всередині
-          <div className="mt-8 flex-1 overflow-auto"> 
-            
-            {/* --- 1. Таблиця для ПК та Планшетів --- */}
-            {/* `hidden md:block` - приховує на мобілках, показує на середніх екранах і вище */}
-            <div className="hidden md:block rounded-lg" style={{ maxHeight: '30vh' }}>
+          <div className="mt-6 flex-1 overflow-auto rounded-2xl border border-gray-100 bg-white/80 p-4 shadow-inner"> 
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-lg font-semibold text-gray-800">Результат підбору</p>
+                <p className="text-sm text-gray-500">
+                  {activeDirectionName && activeGroupName ? `${activeDirectionName} • ${activeGroupName}` : "Вкажіть параметри, щоб побачити товари"}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1 text-xs font-semibold text-blue-700">
+                  <span className="h-2 w-2 rounded-full bg-blue-500"></span>
+                  {products.length} позицій
+                </span>
+                <button
+                  type="button"
+                  onClick={handleBulkAddToCart}
+                  disabled={!hasBulkSelection}
+                  className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-md transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-gray-300"
+                >
+                  <FaShoppingCart className="text-sm" />
+                  Додати всі
+                </button>
+              </div>
+            </div>
+
+            <div className="hidden md:block overflow-hidden rounded-2xl border border-gray-100 bg-white shadow">
               <table className="w-full text-sm align-middle">
-                <thead className="bg-gray-50">
+                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                   <tr>
-                    <th className="sticky top-0 p-2 border-b text-left font-semibold text-gray-600 bg-gray-50">№</th>
-                    <th className="sticky top-0 p-2 border-b text-left font-semibold text-gray-600 bg-gray-50">Код товара</th>
-                    <th className="sticky top-0 p-2 border-b text-left font-semibold text-gray-600 bg-gray-50">Наименование</th>
-                    <th className="sticky top-0 p-2 border-b text-right font-semibold text-gray-600 bg-gray-50">Наличие</th>
-                    <th className="sticky top-0 p-2 border-b text-center font-semibold text-gray-600 bg-gray-50">Заказ</th>
-                    <th className="sticky top-0 p-2 border-b text-right font-semibold text-gray-600 bg-gray-50">Цена</th>
-                    <th className="sticky top-0 p-2 border-b text-right font-semibold text-gray-600 bg-gray-50">% скидки</th>
-                    <th className="sticky top-0 p-2 border-b text-right font-semibold text-gray-600 bg-gray-50">Цена со скидкой</th>
-                    <th className="sticky top-0 p-2 border-b text-right font-semibold text-gray-600 bg-gray-50">Вес (брутто)</th>
-                    <th className="sticky top-0 p-2 border-b text-right font-semibold text-gray-600 bg-gray-50">Объем</th>
-                    <th className="sticky top-0 p-2 border-b text-center font-semibold text-gray-600 bg-gray-50">В корзину</th>
+                    <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">№</th>
+                    <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Код товару</th>
+                    <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Найменування</th>
+                    <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Наявність</th>
+                    <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Замовлення</th>
+                    <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Ціна</th>
+                    <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">% знижки</th>
+                    <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Ціна зі знижкою</th>
+                    <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Вага (брутто)</th>
+                    <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Об'єм</th>
+                    <th className="sticky top-0 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">В кошик</th>
                   </tr>
                 </thead>
                 <tbody>
                   {products.map((product, index) => (
-                    <tr key={product.id} className="hover:bg-gray-50">
-                      <td className="p-2 border-b text-gray-700">{index + 1}</td>
-                      <td className="p-2 border-b text-gray-700">{product.code}</td>
-                      <td className="p-2 border-b text-gray-700">{product.name}</td>
-                      <td className="p-2 border-b text-gray-700 text-right">{product.availability}</td>
-                      <td className="p-2 border-b text-center">
+                    <tr
+                      key={product.id}
+                      className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50/80"} border-b border-gray-100 transition hover:bg-blue-50/60`}
+                    >
+                      <td className="border-r border-gray-100 p-2 text-gray-600 font-medium last:border-r-0">{index + 1}</td>
+                      <td className="border-r border-gray-100 p-2 text-gray-700 font-semibold last:border-r-0">{product.code}</td>
+                      <td className="border-r border-gray-100 p-2 text-gray-700 last:border-r-0">{product.name}</td>
+                      <td className="border-r border-gray-100 p-2 text-center last:border-r-0">
+                        <span className="inline-flex min-w-[60px] items-center justify-center rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                          {product.availability || "---"}
+                        </span>
+                      </td>
+                      <td className="border-r border-gray-100 p-2 text-center last:border-r-0">
                         <input 
                           type="number"
                           value={orderQuantities[product.id] || ''}
                           onChange={(e) => handleQuantityChange(product.id, e.target.value)}
-                          className="w-20 text-center border rounded p-1 shadow-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className="w-20 text-center rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm shadow-sm transition focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           placeholder="0"
                         />
                       </td>
-                      <td className="p-2 border-b text-gray-700 text-right">{product.price}</td>
-                      <td className="p-2 border-b text-gray-700 text-right">{product.discount}</td>
-                      <td className="p-2 border-b text-gray-700 text-right">{product.priceWithDiscount}</td>
-                      <td className="p-2 border-b text-gray-700 text-right">{product.weight}</td>
-                      <td className="p-2 border-b text-gray-700 text-right">{product.volume}</td>
-                      <td className="p-2 border-b text-gray-700 text-center">
+                      <td className="border-r border-gray-100 p-2 text-right text-gray-700 last:border-r-0">{product.price}</td>
+                      <td className="border-r border-gray-100 p-2 text-right text-gray-700 last:border-r-0">{product.discount}</td>
+                      <td className="border-r border-gray-100 p-2 text-right text-gray-700 last:border-r-0">{product.priceWithDiscount}</td>
+                      <td className="border-r border-gray-100 p-2 text-right text-gray-700 last:border-r-0">{product.weight}</td>
+                      <td className="border-r border-gray-100 p-2 text-right text-gray-700 last:border-r-0">{product.volume}</td>
+                      <td className="p-2 text-center">
                         <button
                           type="button"
                           onClick={() => handleAddToCart(product.id)}
-                          className="text-blue-600 hover:text-blue-800 text-lg"
-                          title="Додати в корзину"
+                          className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 transition hover:border-blue-200 hover:bg-blue-100"
+                          title="Додати до кошика"
                         >
                           <FaShoppingCart />
+                          Додати
                         </button>
                       </td>
                     </tr>
@@ -263,17 +493,13 @@ export default function Orders() {
               </table>
             </div>
 
-            {/* --- 2. Новий Список Карток для Мобільних --- */}
-            {/* `md:hidden` - показує на мобілках, приховує на середніх екранах і вище */}
             <div className="md:hidden space-y-4">
               {products.map((product) => (
-                <div key={product.id} className="bg-gray-50 p-4 rounded-lg shadow border">
+                <div key={product.id} className="rounded-2xl border border-gray-100 bg-gray-50/80 p-4 shadow">
                   
-                  {/* Назва та Код */}
                   <h3 className="font-bold text-base text-gray-900">{product.name}</h3>
                   <p className="text-sm text-gray-500 mb-3">Код: {product.code}</p>
 
-                  {/* Деталі */}
                   <div className="grid grid-cols-2 gap-2 text-sm mb-4">
                     <div>
                       <span className="font-semibold text-gray-700 block">Ціна:</span>
@@ -293,23 +519,22 @@ export default function Orders() {
                     </div>
                   </div>
 
-                  {/* Поле вводу та Кнопка */}
                   <div className="flex items-center gap-3">
                     <input 
                       type="text"
                       value={orderQuantities[product.id] || ''}
                       onChange={(e) => handleQuantityChange(product.id, e.target.value)}
-                      className="w-24 text-center border rounded-md p-2 shadow-sm"
+                      className="w-24 text-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                       placeholder="0"
                     />
                     <button
                       type="button"
                       onClick={() => handleAddToCart(product.id)}
-                      className="flex-1 bg-blue-600 text-white rounded-md p-2 flex items-center justify-center gap-2 text-sm"
-                      title="Додати в корзину"
+                      className="flex-1 rounded-xl bg-blue-600 p-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 flex items-center justify-center gap-2"
+                      title="Додати до кошика"
                     >
                       <FaShoppingCart />
-                      <span>В корзину</span>
+                      <span>До кошика</span>
                     </button>
                   </div>
 
@@ -319,9 +544,10 @@ export default function Orders() {
 
           </div>
         ) : (
-          // Повідомлення "не знайдено" (залишається без змін)
           selectedGroup && !isLoadingProducts && (
-            <p className="mt-8 text-center text-gray-600">Для цієї групи товари не знайдені.</p>
+            <div className="mt-8 rounded-2xl border border-dashed border-gray-200 bg-gray-50/80 px-6 py-10 text-center text-sm text-gray-500">
+              Для цієї групи товари не знайдені. Спробуйте інше направлення або групу.
+            </div>
           )
         )}
       </div>

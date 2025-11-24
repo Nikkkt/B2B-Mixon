@@ -1,50 +1,130 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
+
 import AuthLayout from "../components/AuthLayout";
+import { register as registerRequest } from "../api/authApi";
+
+const PASSWORD_RULES = [
+  {
+    id: "length",
+    label: "Мінімум 8 символів",
+    test: (value) => value.length >= 8
+  },
+  {
+    id: "upper",
+    label: "Має містити велику літеру",
+    test: (value) => /[A-ZА-ЯЇІЄҐ]/.test(value)
+  },
+  {
+    id: "digit",
+    label: "Має містити цифру",
+    test: (value) => /\d/.test(value)
+  },
+  {
+    id: "special",
+    label: "Має містити спецсимвол",
+    test: (value) => /[^A-Za-zА-Яа-яЇїІіЄєҐґ0-9]/.test(value)
+  }
+];
+
+const COUNTRY_OPTIONS = [
+  "Україна",
+  "Польща",
+  "Німеччина",
+  "Франція",
+  "Італія",
+  "Іспанія",
+  "Нідерланди",
+  "Бельгія",
+  "Чехія",
+  "Словаччина",
+  "Австрія",
+  "Угорщина",
+  "Румунія",
+  "Болгарія",
+  "Литва",
+  "Латвія",
+  "Естонія",
+  "Велика Британія",
+  "США",
+  "Канада",
+  "Інше",
+];
 
 export default function Register() {
-  const [email, setEmail] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [company, setCompany] = useState("");
-  const [country, setCountry] = useState("Україна");
-  const [city, setCity] = useState("");
-  const [address, setAddress] = useState("");
-  const [phone, setPhone] = useState("");
-  const [error, setError] = useState("");
+  const [form, setForm] = useState({
+    email: "",
+    firstName: "",
+    lastName: "",
+    password: "",
+    confirmPassword: "",
+    company: "",
+    country: "Україна",
+    city: "",
+    address: "",
+    phone: ""
+  });
+  const [formError, setFormError] = useState("");
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Імітація відправки даних на сервер
-    // У реальному додатку тут буде запит до API
-    if (
-      email &&
-      firstName &&
-      lastName &&
-      password &&
-      confirmPassword &&
-      company &&
-      country &&
-      city &&
-      address &&
-      phone
-    ) {
-      if (password === confirmPassword) {
-        navigate("/confirm-registration", { state: { email } });
+  const passwordChecks = useMemo(() => {
+    return PASSWORD_RULES.map((rule) => ({
+      ...rule,
+      isMet: rule.test(form.password)
+    }));
+  }, [form.password]);
+
+  const passwordsMatch = form.password && form.password === form.confirmPassword;
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: registerRequest,
+    onSuccess: (data) => {
+      if (data?.success) {
+        navigate("/confirm-registration", { state: { email: form.email } });
       } else {
-        setError("Паролі не співпадають");
+        setFormError(data?.message ?? "Не вдалося зареєструватися. Спробуйте ще раз.");
       }
-    } else {
-      setError("Будь ласка, заповніть усі поля");
+    },
+    onError: (error) => {
+      setFormError(error.message);
     }
+  });
+
+  const handleChange = (field) => (event) => {
+    const value = event.target.value;
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    setFormError("");
+
+    if (!passwordsMatch) {
+      setFormError("Паролі не співпадають");
+      return;
+    }
+
+    const payload = {
+      email: form.email.trim(),
+      firstName: form.firstName.trim(),
+      lastName: form.lastName.trim(),
+      password: form.password,
+      confirmPassword: form.confirmPassword,
+      company: form.company.trim(),
+      country: form.country.trim(),
+      city: form.city.trim(),
+      address: form.address.trim(),
+      phone: form.phone.trim()
+    };
+
+    mutate(payload);
   };
 
   return (
     <AuthLayout
       title="Реєстрація"
+      maxWidthClass="max-w-2xl"
       footer={
         <>
           Вже є акаунт?{" "}
@@ -55,103 +135,139 @@ export default function Register() {
       }
     >
       <form className="space-y-4" onSubmit={handleSubmit}>
-        {/* Ім'я + Прізвище */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <input
             type="text"
             placeholder="Ім'я"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
+            value={form.firstName}
+            onChange={handleChange("firstName")}
+            required
             className="rounded-lg border border-gray-300 p-3 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
           />
           <input
             type="text"
             placeholder="Прізвище"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
+            value={form.lastName}
+            onChange={handleChange("lastName")}
+            required
             className="rounded-lg border border-gray-300 p-3 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
           />
         </div>
 
-        {/* Пошта */}
         <input
           type="email"
           placeholder="Пошта"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={form.email}
+          onChange={handleChange("email")}
+          autoComplete="email"
+          required
           className="w-full rounded-lg border border-gray-300 p-3 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
         />
 
-        {/* Пароль + підтвердження */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <input
-            type="password"
-            placeholder="Пароль"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="rounded-lg border border-gray-300 p-3 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
-          />
-          <input
-            type="password"
-            placeholder="Підтвердження паролю"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="rounded-lg border border-gray-300 p-3 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+          <div className="space-y-3">
+            <input
+              type="password"
+              placeholder="Пароль"
+              value={form.password}
+              onChange={handleChange("password")}
+              autoComplete="new-password"
+              required
+              className="w-full rounded-lg border border-gray-300 p-3 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
+            />
+            <div>
+              <input
+                type="password"
+                placeholder="Підтвердження паролю"
+                value={form.confirmPassword}
+                onChange={handleChange("confirmPassword")}
+                autoComplete="new-password"
+                required
+                className="w-full rounded-lg border border-gray-300 p-3 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
+              />
+              {form.confirmPassword && !passwordsMatch && (
+                <p className="text-xs text-red-500 mt-1">Паролі не співпадають</p>
+              )}
+            </div>
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-2 text-[14px] text-gray-600">
+            <ul className="space-y-1">
+              {passwordChecks.map((rule) => (
+                <li key={rule.id} className="flex items-center gap-1">
+                  <span
+                    className={
+                      "inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border " +
+                      (rule.isMet ? "border-green-500 bg-green-500" : "border-gray-300")
+                    }
+                  >
+                    {rule.isMet && <span className="text-white text-[8px]">✓</span>}
+                  </span>
+                  {rule.label}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
-        {/* Підприємство */}
         <input
           type="text"
           placeholder="Підприємство"
-          value={company}
-          onChange={(e) => setCompany(e.target.value)}
+          value={form.company}
+          onChange={handleChange("company")}
+          required
           className="w-full rounded-lg border border-gray-300 p-3 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
         />
 
-        {/* Країна + місто */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <input
-            type="text"
-            placeholder="Країна"
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
+          <select
+            value={form.country}
+            onChange={handleChange("country")}
+            required
             className="rounded-lg border border-gray-300 p-3 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
-          />
+          >
+            <option value="">Оберіть країну</option>
+            {COUNTRY_OPTIONS.map((country) => (
+              <option key={country} value={country}>
+                {country}
+              </option>
+            ))}
+          </select>
           <input
             type="text"
             placeholder="Місто"
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
+            value={form.city}
+            onChange={handleChange("city")}
+            required
             className="rounded-lg border border-gray-300 p-3 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
           />
         </div>
 
-        {/* Адреса */}
         <input
           type="text"
           placeholder="Адреса"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
+          value={form.address}
+          onChange={handleChange("address")}
+          required
           className="w-full rounded-lg border border-gray-300 p-3 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
         />
 
-        {/* Телефон */}
         <input
           type="tel"
           placeholder="Телефон"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          value={form.phone}
+          onChange={handleChange("phone")}
+          required
           className="w-full rounded-lg border border-gray-300 p-3 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
         />
 
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {formError && <p className="text-red-500 text-sm">{formError}</p>}
 
         <button
           type="submit"
-          className="w-full rounded-lg bg-blue-600 p-3 text-white text-sm sm:text-base transition hover:bg-blue-700"
+          disabled={isPending}
+          className="w-full rounded-lg bg-blue-600 p-3 text-white text-sm sm:text-base transition hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          Зареєструватися
+          {isPending ? "Реєстрація..." : "Зареєструватися"}
         </button>
       </form>
     </AuthLayout>

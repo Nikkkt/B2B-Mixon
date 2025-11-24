@@ -1,51 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import HomeLayout from "../components/HomeLayout";
 import { FaPlus, FaEdit, FaTrash, FaTimes } from "react-icons/fa";
-
-const initialDirections = [
-  {
-    id: "dir-01",
-    title: "01 - Car Refinish - для покраски авто",
-    createdAt: "2021-08-27T01:36:00Z",
-    updatedAt: "2021-09-17T04:56:00Z",
-  },
-  {
-    id: "dir-02",
-    title: "02 - Decorative Coating - для строительства и ремонта",
-    createdAt: "2021-08-27T01:36:00Z",
-    updatedAt: "2021-09-09T06:01:00Z",
-  },
-  {
-    id: "dir-03",
-    title: "03 - Wood Coating - для обработки древесины",
-    createdAt: "2021-08-27T01:37:00Z",
-    updatedAt: "2021-09-09T06:14:00Z",
-  },
-  {
-    id: "dir-04",
-    title: "04 - Industrial Coating - для промышленности",
-    createdAt: "2021-08-27T01:37:00Z",
-    updatedAt: "2021-09-09T06:26:00Z",
-  },
-  {
-    id: "dir-05",
-    title: "05 - Car Care - автоматика, автохімія та обладнання для мийок",
-    createdAt: "2021-08-27T01:37:00Z",
-    updatedAt: "2021-11-26T02:54:00Z",
-  },
-  {
-    id: "dir-06",
-    title: "06 - Non Paint - інструменти, аксесуари і розхідні матеріали",
-    createdAt: "2021-08-27T01:37:00Z",
-    updatedAt: "2021-09-09T06:50:00Z",
-  },
-  {
-    id: "dir-07",
-    title: "07 - ... Другое",
-    createdAt: "2021-08-27T01:37:00Z",
-    updatedAt: "2021-09-09T07:00:00Z",
-  },
-];
+import {
+  fetchAdminDirections,
+  createAdminDirection,
+  updateAdminDirection,
+  deleteAdminDirection,
+} from "../api/adminDirectionsApi";
 
 const formatDateTime = (value) =>
   new Date(value).toLocaleString("uk-UA", {
@@ -57,36 +18,59 @@ const formatDateTime = (value) =>
   });
 
 export default function Directions() {
-  const [directions, setDirections] = useState(initialDirections);
+  const [directions, setDirections] = useState([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formValues, setFormValues] = useState({ title: "" });
-  const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [requestError, setRequestError] = useState("");
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, targetId: null, targetTitle: "" });
 
   const orderedDirections = useMemo(
     () =>
       [...directions].sort((a, b) => {
-        const [aCode = "", aRest = ""] = a.title.split(" - ");
-        const [bCode = "", bRest = ""] = b.title.split(" - ");
-        if (aCode === bCode) {
-          return aRest.localeCompare(bRest, "uk");
+        const orderA = Number.isFinite(a?.sortOrder) ? a.sortOrder : Number.MAX_SAFE_INTEGER;
+        const orderB = Number.isFinite(b?.sortOrder) ? b.sortOrder : Number.MAX_SAFE_INTEGER;
+        if (orderA !== orderB) {
+          return orderA - orderB;
         }
-        return aCode.localeCompare(bCode, "uk", { numeric: true });
+
+        const titleA = a?.title ?? "";
+        const titleB = b?.title ?? "";
+        return titleA.localeCompare(titleB, "uk", { numeric: true, sensitivity: "base" });
       }),
     [directions]
   );
 
+  const loadDirections = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setRequestError("");
+      const data = await fetchAdminDirections();
+      setDirections(Array.isArray(data) ? data : []);
+    } catch (loadError) {
+      setRequestError(loadError.message ?? "Не вдалося завантажити напрямки.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDirections();
+  }, [loadDirections]);
+
   const openCreateForm = () => {
     setEditingId(null);
     setFormValues({ title: "" });
-    setError("");
+    setFormError("");
     setIsFormOpen(true);
   };
 
   const openEditForm = (direction) => {
     setEditingId(direction.id);
     setFormValues({ title: direction.title });
-    setError("");
+    setFormError("");
     setIsFormOpen(true);
   };
 
@@ -94,54 +78,61 @@ export default function Directions() {
     setIsFormOpen(false);
     setEditingId(null);
     setFormValues({ title: "" });
-    setError("");
+    setFormError("");
   };
 
   const handleInputChange = (event) => {
     setFormValues({ title: event.target.value });
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     const trimmedTitle = formValues.title.trim();
 
     if (!trimmedTitle) {
-      setError("Назва обов'язкова.");
+      setFormError("Назва обов'язкова.");
       return;
     }
 
-    setDirections((prev) => {
+    try {
+      setRequestError("");
+
       if (editingId) {
-        const now = new Date().toISOString();
-        return prev.map((item) =>
-          item.id === editingId
-            ? {
-                ...item,
-                title: trimmedTitle,
-                updatedAt: now,
-              }
-            : item
-        );
+        const updated = await updateAdminDirection(editingId, { title: trimmedTitle });
+        setDirections((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      } else {
+        const created = await createAdminDirection({ title: trimmedTitle });
+        setDirections((prev) => [...prev, created]);
       }
 
-      const now = new Date().toISOString();
-      return [
-        ...prev,
-        {
-          id: `dir-${Date.now()}`,
-          title: trimmedTitle,
-          createdAt: now,
-          updatedAt: now,
-        },
-      ];
-    });
-
-    closeForm();
+      closeForm();
+    } catch (submitError) {
+      setRequestError(submitError.message ?? "Не вдалося зберегти направлення.");
+    }
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm("Видалити направлення?")) {
-      setDirections((prev) => prev.filter((item) => item.id !== id));
+  const openDeleteDialog = (direction) => {
+    setDeleteDialog({ isOpen: true, targetId: direction.id, targetTitle: direction.title ?? "" });
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialog({ isOpen: false, targetId: null, targetTitle: "" });
+  };
+
+  const handleDelete = async () => {
+    const { targetId } = deleteDialog;
+    if (!targetId) {
+      return;
+    }
+
+    try {
+      setRequestError("");
+      await deleteAdminDirection(targetId);
+      setDirections((prev) => prev.filter((item) => item.id !== targetId));
+    } catch (deleteError) {
+      setRequestError(deleteError.message ?? "Не вдалося видалити направлення.");
+    } finally {
+      closeDeleteDialog();
     }
   };
 
@@ -179,6 +170,12 @@ export default function Directions() {
           </button>
         </div>
 
+        {requestError ? (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            {requestError}
+          </div>
+        ) : null}
+
         <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full text-sm text-left border border-gray-200 rounded-lg overflow-hidden">
             <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wider">
@@ -191,7 +188,13 @@ export default function Directions() {
               </tr>
             </thead>
             <tbody>
-              {orderedDirections.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-8 text-gray-500">
+                    Завантаження направлень…
+                  </td>
+                </tr>
+              ) : orderedDirections.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="text-center py-8 text-gray-500">
                     Направлення ще не створені.
@@ -205,7 +208,10 @@ export default function Directions() {
                   >
                     <td className="px-4 py-3 text-gray-700 font-medium">{index + 1}</td>
                     <td className="px-4 py-3 text-gray-900 font-semibold">
-                      {direction.title}
+                      {direction.code ? (
+                        <span className="block text-xs text-gray-500">{direction.code}</span>
+                      ) : null}
+                      <span>{direction.title}</span>
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       {formatDateTime(direction.createdAt)}
@@ -225,7 +231,7 @@ export default function Directions() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDelete(direction.id)}
+                          onClick={() => openDeleteDialog(direction)}
                           className="text-red-500 hover:text-red-600"
                           aria-label="Видалити направлення"
                         >
@@ -241,7 +247,11 @@ export default function Directions() {
         </div>
 
         <div className="md:hidden space-y-4">
-          {orderedDirections.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-6 text-gray-500 border border-dashed border-gray-300 rounded-lg">
+              Завантаження направлень…
+            </div>
+          ) : orderedDirections.length === 0 ? (
             <div className="text-center py-6 text-gray-500 border border-dashed border-gray-300 rounded-lg">
               Направлення ще не створені.
             </div>
@@ -265,7 +275,7 @@ export default function Directions() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDelete(direction.id)}
+                      onClick={() => openDeleteDialog(direction)}
                       className="text-red-500 hover:text-red-600"
                       aria-label="Видалити направлення"
                     >
@@ -274,6 +284,9 @@ export default function Directions() {
                   </div>
                 </div>
                 <div>
+                  {direction.code ? (
+                    <p className="text-xs text-gray-500">{direction.code}</p>
+                  ) : null}
                   <h3 className="text-base font-semibold text-gray-900">
                     {direction.title}
                   </h3>
@@ -324,9 +337,9 @@ export default function Directions() {
                   placeholder="Наприклад: 08 - Color Tools - професійні матеріали"
                   autoFocus
                 />
-                {error && (
+                {formError && (
                   <p className="mt-2 text-sm text-red-600" role="alert">
-                    {error}
+                    {formError}
                   </p>
                 )}
               </div>
@@ -350,6 +363,35 @@ export default function Directions() {
           </div>
         </div>
       )}
+
+      {deleteDialog.isOpen ? (
+        <div className="fixed inset-0 z-30 flex items-center justify-center px-4 py-6 bg-gray-900/70">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 relative">
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Видалити направлення</h3>
+            <p className="text-sm text-gray-600">
+              Ви впевнені, що хочете видалити напрямок
+              <span className="font-semibold text-gray-900"> “{deleteDialog.targetTitle}”</span>? Цю дію
+              неможливо скасувати.
+            </p>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeDeleteDialog}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+              >
+                Скасувати
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700"
+              >
+                Видалити
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </HomeLayout>
   );
 }

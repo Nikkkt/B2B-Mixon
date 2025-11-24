@@ -1,5 +1,6 @@
-using backend.DTOs;
-using backend.Services;
+using backend.DTOs.Auth;
+using backend.Exceptions;
+using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backend.Controllers;
@@ -16,30 +17,48 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
-    public async Task<IActionResult> Register(RegisterDto dto)
-    {
-        var token = await _authService.RegisterAsync(dto);
-        return Ok(new { Token = token });
-    }
+    public async Task<IActionResult> Register([FromBody] RegisterDto dto)
+        => await ExecuteAsync(() => _authService.RegisterAsync(dto));
+
+    [HttpPost("register/resend-code")]
+    public async Task<IActionResult> ResendVerificationCode([FromBody] EmailRequestDto dto)
+        => await ExecuteAsync(() => _authService.ResendVerificationCodeAsync(dto.Email));
+
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyCodeDto dto)
+        => await ExecuteAsync(() => _authService.VerifyEmailAsync(dto));
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login(LoginDto dto)
-    {
-        var token = await _authService.LoginAsync(dto);
-        return Ok(new { Token = token });
-    }
+    public async Task<IActionResult> Login([FromBody] LoginDto dto)
+        => await ExecuteAsync(() => _authService.LoginAsync(dto));
 
-    [HttpPost("reset-password")]
-    public async Task<IActionResult> ResetPassword(ResetPasswordDto dto)
-    {
-        var result = await _authService.ResetPasswordAsync(dto);
-        return Ok(new { Message = result });
-    }
+    [HttpPost("password-reset/request")]
+    public async Task<IActionResult> RequestPasswordReset([FromBody] ResetPasswordRequestDto dto)
+        => await ExecuteAsync(() => _authService.RequestPasswordResetAsync(dto));
 
-    [HttpPost("verify-code")]
-    public async Task<IActionResult> VerifyCode(VerifyCodeDto dto)
+    [HttpPost("password-reset/verify")]
+    public async Task<IActionResult> VerifyPasswordReset([FromBody] ResetPasswordVerifyDto dto)
+        => await ExecuteAsync(() => _authService.VerifyPasswordResetCodeAsync(dto));
+
+    [HttpPost("password-reset/confirm")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        => await ExecuteAsync(() => _authService.ResetPasswordAsync(dto));
+
+    private async Task<IActionResult> ExecuteAsync(Func<Task<AuthResultDto>> action)
     {
-        var result = await _authService.VerifyCodeAsync(dto);
-        return Ok(new { IsValid = result });
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        try
+        {
+            var result = await action();
+            return Ok(result);
+        }
+        catch (AuthException ex)
+        {
+            return StatusCode(ex.StatusCode, new { error = ex.Message });
+        }
     }
 }

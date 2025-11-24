@@ -10,6 +10,30 @@ const LANGUAGE_OPTIONS = [
   { value: "russian", label: "Русский" },
 ];
 
+const COUNTRY_OPTIONS = [
+  "Україна",
+  "Польща",
+  "Німеччина",
+  "Франція",
+  "Італія",
+  "Іспанія",
+  "Нідерланди",
+  "Бельгія",
+  "Чехія",
+  "Словаччина",
+  "Австрія",
+  "Угорщина",
+  "Румунія",
+  "Болгарія",
+  "Литва",
+  "Латвія",
+  "Естонія",
+  "Велика Британія",
+  "США",
+  "Канада",
+  "Інше",
+];
+
 const DEFAULT_FORM_STATE = {
   firstName: "",
   lastName: "",
@@ -24,23 +48,29 @@ const DEFAULT_FORM_STATE = {
   password: "",
   language: "ukrainian",
   avatarUrl: "",
+  defaultBranchId: null,
+  discountProfileId: null,
 };
 
 export default function Profile() {
-  const { currentUser, updateUserProfile } = useCart();
-  const [formValues, setFormValues] = useState(() => ({
-    ...DEFAULT_FORM_STATE,
-    ...currentUser,
-  }));
-  const [avatarPreview, setAvatarPreview] = useState(currentUser?.avatarUrl || "");
+  const { currentUser, updateUserProfile, isProfileLoading, profileError } = useCart();
+  const [formValues, setFormValues] = useState(DEFAULT_FORM_STATE);
+  const [avatarPreview, setAvatarPreview] = useState("");
   const [status, setStatus] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    setFormValues({
-      ...DEFAULT_FORM_STATE,
-      ...currentUser,
-    });
-    setAvatarPreview(currentUser?.avatarUrl || "");
+    if (currentUser) {
+      setFormValues({
+        ...DEFAULT_FORM_STATE,
+        ...currentUser,
+        password: "",
+      });
+      setAvatarPreview(currentUser.avatarUrl || "");
+    } else {
+      setFormValues(DEFAULT_FORM_STATE);
+      setAvatarPreview("");
+    }
     setStatus(null);
   }, [currentUser]);
 
@@ -54,6 +84,7 @@ export default function Profile() {
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
+    setStatus(null);
     setFormValues((prev) => ({
       ...prev,
       [name]: value,
@@ -76,22 +107,60 @@ export default function Profile() {
       }));
     };
     reader.readAsDataURL(file);
+    setStatus(null);
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    updateUserProfile({ ...formValues, avatarUrl: avatarPreview });
-    setStatus({ type: "success", message: "Профіль успішно оновлено" });
+    setStatus(null);
+    setIsSubmitting(true);
+    updateUserProfile({ ...formValues, avatarUrl: avatarPreview })
+      .then(() => {
+        setStatus({ type: "success", message: "Профіль успішно оновлено" });
+      })
+      .catch((error) => {
+        setStatus({
+          type: "error",
+          message: error?.message ?? "Не вдалося оновити профіль. Спробуйте пізніше.",
+        });
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   const handleReset = () => {
     setFormValues({
       ...DEFAULT_FORM_STATE,
       ...currentUser,
+      password: "",
     });
     setAvatarPreview(currentUser?.avatarUrl || "");
     setStatus(null);
   };
+
+  const banner = status ?? (profileError ? { type: "error", message: profileError } : null);
+  const isDisabled = isProfileLoading || isSubmitting;
+
+  if (!currentUser && isProfileLoading) {
+    return (
+      <HomeLayout>
+        <div className="flex items-center justify-center h-full text-gray-600">
+          Завантаження профілю...
+        </div>
+      </HomeLayout>
+    );
+  }
+
+  if (!currentUser && !isProfileLoading) {
+    return (
+      <HomeLayout>
+        <div className="flex items-center justify-center h-full text-gray-600">
+          Профіль користувача недоступний.
+        </div>
+      </HomeLayout>
+    );
+  }
 
   return (
     <HomeLayout>
@@ -116,15 +185,15 @@ export default function Profile() {
                 Оновіть свої контактні дані, щоб менеджери могли швидше обробляти замовлення.
               </p>
             </div>
-            {status ? (
+            {banner ? (
               <div
                 className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
-                  status.type === "success"
+                  banner.type === "success"
                     ? "bg-green-50 text-green-700 border border-green-200"
-                    : "bg-yellow-50 text-yellow-700 border border-yellow-200"
+                    : "bg-red-50 text-red-700 border border-red-200"
                 }`}
               >
-                {status.message}
+                {banner.message}
               </div>
             ) : null}
           </header>
@@ -147,7 +216,13 @@ export default function Profile() {
                   <label className="inline-flex items-center gap-2 px-4 py-2 bg-white text-indigo-600 border border-indigo-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition text-sm font-medium">
                     <FaCamera />
                     Завантажити фото
-                    <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarChange}
+                      disabled={isDisabled}
+                    />
                   </label>
                 </div>
               </div>
@@ -163,6 +238,7 @@ export default function Profile() {
                       className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       placeholder="Введіть ім'я"
                       required
+                      disabled={isDisabled}
                     />
                   </label>
                   <label className="flex flex-col text-sm gap-1">
@@ -174,6 +250,7 @@ export default function Profile() {
                       className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       placeholder="Введіть прізвище"
                       required
+                      disabled={isDisabled}
                     />
                   </label>
                   <label className="flex flex-col text-sm gap-1">
@@ -186,6 +263,7 @@ export default function Profile() {
                       className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       placeholder="name@example.com"
                       required
+                      disabled={isDisabled}
                     />
                   </label>
                   <label className="flex flex-col text-sm gap-1">
@@ -197,6 +275,7 @@ export default function Profile() {
                       onChange={handleInputChange}
                       className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       placeholder="+380 67 000 00 00"
+                      disabled={isDisabled}
                     />
                   </label>
                   <label className="flex flex-col text-sm gap-1">
@@ -207,6 +286,7 @@ export default function Profile() {
                       onChange={handleInputChange}
                       className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       placeholder="Назва компанії"
+                      disabled={isDisabled}
                     />
                   </label>
                   <label className="flex flex-col text-sm gap-1">
@@ -217,17 +297,24 @@ export default function Profile() {
                       onChange={handleInputChange}
                       className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       placeholder="11111111"
+                      disabled={isDisabled}
                     />
                   </label>
                   <label className="flex flex-col text-sm gap-1">
                     <span className="font-medium text-gray-700">Країна</span>
-                    <input
+                    <select
                       name="country"
                       value={formValues.country}
                       onChange={handleInputChange}
                       className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      placeholder="Україна"
-                    />
+                    >
+                      <option value="">Оберіть країну</option>
+                      {COUNTRY_OPTIONS.map((country) => (
+                        <option key={country} value={country}>
+                          {country}
+                        </option>
+                      ))}
+                    </select>
                   </label>
                   <label className="flex flex-col text-sm gap-1">
                     <span className="font-medium text-gray-700">Місто</span>
@@ -237,6 +324,7 @@ export default function Profile() {
                       onChange={handleInputChange}
                       className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       placeholder="Одеса"
+                      disabled={isDisabled}
                     />
                   </label>
                 </div>
@@ -250,6 +338,7 @@ export default function Profile() {
                       onChange={handleInputChange}
                       className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       placeholder="Вулиця, будинок, офіс"
+                      disabled={isDisabled}
                     />
                   </label>
                   <label className="flex flex-col text-sm gap-1">
@@ -260,6 +349,7 @@ export default function Profile() {
                       onChange={handleInputChange}
                       className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       placeholder="+380 48 765 43 21"
+                      disabled={isDisabled}
                     />
                   </label>
                   <label className="flex flex-col text-sm gap-1">
@@ -269,6 +359,7 @@ export default function Profile() {
                       value={formValues.language}
                       onChange={handleInputChange}
                       className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      disabled={isDisabled}
                     >
                       {LANGUAGE_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -286,6 +377,7 @@ export default function Profile() {
                       onChange={handleInputChange}
                       className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       placeholder="Оновити пароль"
+                      disabled={isDisabled}
                     />
                   </label>
                 </div>
@@ -303,16 +395,18 @@ export default function Profile() {
                 type="button"
                 onClick={handleReset}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                disabled={isDisabled}
               >
                 <FaUndo />
                 Скасувати зміни
               </button>
               <button
                 type="submit"
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition disabled:bg-blue-300"
+                disabled={isDisabled}
               >
                 <FaRegSave />
-                Зберегти
+                {isSubmitting ? "Збереження..." : "Зберегти"}
               </button>
             </div>
           </form>

@@ -1,17 +1,78 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import HomeLayout from "../components/HomeLayout";
 import {
   FaBuilding,
   FaStore,
   FaUserTie,
-  FaBell,
-  FaHistory,
-  FaTruck,
   FaClipboardList,
   FaMapMarkerAlt,
-  FaUsers,
   FaEdit,
+  FaPlus,
+  FaTrash,
 } from "react-icons/fa";
+import {
+  fetchAdminDepartmentsDashboard,
+  updateAdminDepartment,
+  createAdminDepartment,
+  deleteAdminDepartment,
+} from "../api/adminDepartmentsApi";
+import { fetchAdminUsersDashboard } from "../api/adminUsersApi";
+
+const typeOptions = [
+  { key: "branch", label: "Філіал" },
+  { key: "store", label: "Магазин" },
+  { key: "sales", label: "Відділ продажу" },
+];
+
+const generateLocalId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
+const SECTION_TYPE_MAP = {
+  branches: "branch",
+  stores: "store",
+  sales: "sales",
+};
+
+const normalizeDepartment = (department) => {
+  const typeKey = department.type ?? "branch";
+  const typeLabel =
+    department.typeLabel ?? typeOptions.find((option) => option.key === typeKey)?.label ?? "Філіал";
+
+  const employees = (department.employees ?? []).map((employee) => ({
+    id: employee.id ?? null,
+    name: employee.name,
+    note: employee.note ?? "",
+    localId: employee.id ?? generateLocalId(),
+    userId: employee.userId ?? null,
+    email: employee.email ?? "",
+  }));
+
+  return {
+    id: department.id,
+    code: department.code,
+    name: department.name,
+    typeKey,
+    typeLabel,
+    branchId: department.branchId ?? "",
+    branchName: department.branchName ?? "",
+    shippingPoint: department.shippingPoint ?? department.branchName ?? "",
+    sourceBranchId: department.sourceBranchId ?? "",
+    sourceBranch: department.sourceBranch ?? "",
+    addedAt: department.addedAt,
+    updatedAt: department.updatedAt,
+    employees,
+    assignedClients: (department.assignedClients ?? []).map((client) => ({
+      id: client.id,
+      name: client.name,
+      shippingPoint: client.shippingPoint ?? "",
+    })),
+  };
+};
+
+const sortDepartments = (items) =>
+  [...items].sort((a, b) => a.name.localeCompare(b.name, "uk", { sensitivity: "base" }));
+
+const extractErrorMessage = (error) =>
+  error?.response?.data?.error ?? error?.message ?? "Сталася помилка. Спробуйте ще раз.";
 
 function formatDate(value) {
   if (!value) return "—";
@@ -22,183 +83,147 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
-function BranchMobileCard({ branch, onAction, onEdit }) {
-  const handleAction = (actionKey, label) =>
-    onAction("branch", branch, actionKey, label);
-
+function BranchMobileCard({ branch, onEdit, onDelete }) {
   return (
-    <article className="border border-gray-200 rounded-xl bg-white shadow-sm hover:shadow-md transition p-4 space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-gray-500">ID</p>
-          <p className="text-lg font-semibold text-gray-900">{branch.id}</p>
+    <article className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col gap-3">
+      <header>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-semibold text-gray-500">ID: {branch.id}</span>
         </div>
-        <button
-          type="button"
-          onClick={onEdit}
-          className="text-sm font-semibold text-indigo-600 hover:text-indigo-800"
-        >
-          Редагувати
-        </button>
-      </div>
-
-      <div>
-        <h3 className="text-base font-semibold text-gray-900">{branch.name}</h3>
-        <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-          <FaMapMarkerAlt className="text-gray-400" /> {branch.shippingPoint}
+        <h4 className="font-semibold text-gray-900 text-lg">{branch.name}</h4>
+        <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+          <FaMapMarkerAlt /> {branch.shippingPoint}
         </p>
-        <p className="text-xs text-gray-400 mt-1">
-          Оновлено: {formatDateTime(branch.updatedAt)}
-        </p>
+      </header>
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <p className="text-xs text-gray-500 mb-1">Додано</p>
+          <p className="text-gray-900">{formatDate(branch.addedAt)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500 mb-1">Оновлено</p>
+          <p className="text-gray-900">{formatDateTime(branch.updatedAt)}</p>
+        </div>
       </div>
-
       <div>
-        <h4 className="text-xs uppercase tracking-wide text-gray-500 mb-2">Працівники</h4>
+        <p className="text-xs text-gray-500 mb-2">Працівники</p>
         <EmployeeList employees={branch.employees} />
       </div>
-
-      <div className="flex flex-wrap gap-2">
-        <ActionPill
-          icon={FaTruck}
-          label="Завантажити"
-          onClick={() => handleAction("loadStock", "Завантажити наявність")}
-        />
-        <ActionPill
-          icon={FaBell}
-          label="Сповіщення"
-          onClick={() => handleAction("notifications", "Сповіщення")}
-        />
-        <ActionPill
-          icon={FaHistory}
-          label="Історія"
-          onClick={() => handleAction("history", "Історія")}
-        />
+      <div className="flex gap-2 border-t border-gray-100 pt-3">
+        <button
+          onClick={onEdit}
+          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+        >
+          <FaEdit /> Редагувати
+        </button>
+        <button
+          onClick={onDelete}
+          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition"
+        >
+          <FaTrash /> Видалити
+        </button>
       </div>
     </article>
   );
 }
 
-function SalesMobileCard({ department, onAction, onEdit }) {
-  const handleAction = (actionKey, label) =>
-    onAction("sales", department, actionKey, label);
-
-  const sampleClients = department.assignedClients?.slice(0, 2) || [];
-
+function SalesMobileCard({ department, onEdit, onDelete }) {
   return (
-    <article className="border border-gray-200 rounded-xl bg-white shadow-sm hover:shadow-md transition p-4 space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-gray-500">ID</p>
-          <p className="text-lg font-semibold text-gray-900">{department.id}</p>
+    <article className="border border-gray-200 rounded-xl bg-white shadow-sm hover:shadow-md transition p-4 space-y-3">
+      <header>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-semibold text-gray-500">ID: {department.id}</span>
         </div>
-        <button
-          type="button"
-          onClick={onEdit}
-          className="text-sm font-semibold text-indigo-600 hover:text-indigo-800"
-        >
-          Редагувати
-        </button>
-      </div>
-
-      <div>
-        <h3 className="text-base font-semibold text-gray-900">{department.name}</h3>
-        <p className="text-xs text-gray-400 mt-1">
-          Оновлено: {formatDateTime(department.updatedAt)}
-        </p>
+        <h3 className="text-lg font-semibold text-gray-900">{department.name}</h3>
         {department.assignedClients?.length ? (
-          <div className="text-xs text-gray-500 mt-2 space-y-1">
-            <p>Клієнтів: {department.assignedClients.length}</p>
-            <p className="text-gray-400">
-              Приклади: {sampleClients.map((client) => client.name).join(", ")}
+          <>
+            <p className="text-xs text-gray-500 mt-1">
+              Клієнтів: {department.assignedClients.length}
+            </p>
+            <p className="text-xs text-gray-400 mt-1 truncate">
+              Приклади: {department.assignedClients.slice(0, 2).map((client) => client.name).join(", ")}
               {department.assignedClients.length > 2 ? "…" : ""}
             </p>
-          </div>
+          </>
         ) : null}
+      </header>
+
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <p className="text-xs text-gray-500 mb-1">Додано</p>
+          <p className="text-gray-900">{formatDate(department.addedAt)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500 mb-1">Оновлено</p>
+          <p className="text-gray-900">{formatDateTime(department.updatedAt)}</p>
+        </div>
       </div>
 
       <div>
-        <h4 className="text-xs uppercase tracking-wide text-gray-500 mb-2">Менеджери</h4>
+        <p className="text-xs text-gray-500 mb-2">Працівники (Менеджери)</p>
         <EmployeeList employees={department.employees} />
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <ActionPill
-          icon={FaUsers}
-          label="Менеджер"
-          onClick={() => handleAction("assignManager", "Призначити менеджера")}
-        />
-        <ActionPill
-          icon={FaBell}
-          label="Сповіщення"
-          onClick={() => handleAction("notifications", "Сповіщення")}
-        />
-        <ActionPill
-          icon={FaHistory}
-          label="Історія"
-          onClick={() => handleAction("history", "Історія")}
-        />
+      <div className="flex gap-2 border-t border-gray-100 pt-3">
+        <button
+          onClick={onEdit}
+          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+        >
+          <FaEdit /> Редагувати
+        </button>
+        <button
+          onClick={onDelete}
+          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition"
+        >
+          <FaTrash /> Видалити
+        </button>
       </div>
     </article>
   );
 }
 
-function StoreMobileCard({ store, onAction, onEdit }) {
-  const handleAction = (actionKey, label) =>
-    onAction("store", store, actionKey, label);
-
+function StoreMobileCard({ store, onEdit, onDelete }) {
   return (
-    <article className="border border-gray-200 rounded-xl bg-white shadow-sm hover:shadow-md transition p-4 space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-gray-500">ID</p>
-          <p className="text-lg font-semibold text-gray-900">{store.id}</p>
+    <article className="border border-gray-200 rounded-xl bg-white shadow-sm hover:shadow-md transition p-4 space-y-3">
+      <header>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-semibold text-gray-500">ID: {store.id}</span>
         </div>
-        <button
-          type="button"
-          onClick={onEdit}
-          className="text-sm font-semibold text-indigo-600 hover:text-indigo-800"
-        >
-          Редагувати
-        </button>
+        <h3 className="text-lg font-semibold text-gray-900">{store.name}</h3>
+        <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+          <FaMapMarkerAlt /> {store.shippingPoint}
+        </p>
+      </header>
+
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <p className="text-xs text-gray-500 mb-1">Додано</p>
+          <p className="text-gray-900">{formatDate(store.addedAt)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500 mb-1">Оновлено</p>
+          <p className="text-gray-900">{formatDateTime(store.updatedAt)}</p>
+        </div>
       </div>
 
       <div>
-        <h3 className="text-base font-semibold text-gray-900">{store.name}</h3>
-        <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-          <FaMapMarkerAlt className="text-gray-400" /> {store.shippingPoint}
-        </p>
-        <p className="text-xs text-gray-400 mt-1">Відправник: {store.sourceBranch}</p>
-        <p className="text-xs text-gray-400 mt-1">
-          Оновлено: {formatDateTime(store.updatedAt)}
-        </p>
-      </div>
-
-      <div>
-        <h4 className="text-xs uppercase tracking-wide text-gray-500 mb-2">Працівники</h4>
+        <p className="text-xs text-gray-500 mb-2">Працівники</p>
         <EmployeeList employees={store.employees} />
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <ActionPill
-          icon={FaTruck}
-          label="Наявність"
-          onClick={() => handleAction("loadStock", "Завантажити наявність")}
-        />
-        <ActionPill
-          icon={FaBell}
-          label="Сповіщення"
-          onClick={() => handleAction("notifications", "Сповіщення")}
-        />
-        <ActionPill
-          icon={FaClipboardList}
-          label="Замовити"
-          onClick={() => handleAction("submitOrder", "Замовити на філіал")}
-        />
-        <ActionPill
-          icon={FaHistory}
-          label="Історія"
-          onClick={() => handleAction("history", "Історія")}
-        />
+      <div className="flex gap-2 border-t border-gray-100 pt-3">
+        <button
+          onClick={onEdit}
+          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+        >
+          <FaEdit /> Редагувати
+        </button>
+        <button
+          onClick={onDelete}
+          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition"
+        >
+          <FaTrash /> Видалити
+        </button>
       </div>
     </article>
   );
@@ -211,143 +236,6 @@ function formatDateTime(value) {
     timeStyle: "short",
   }).format(new Date(value));
 }
-
-const initialBranches = [
-  {
-    id: "11",
-    name: "1 - Головний склад Одеса",
-    type: "Філіал",
-    shippingPoint: "1 - Головний склад Одеса",
-    addedAt: "2021-09-09T00:00:00",
-    updatedAt: "2025-10-26T06:25:00",
-    employees: [
-      { name: "Рахор Рах", note: "Контроль залишків" },
-      { name: "Слобік Дмитрій", note: "Менеджер складу" },
-      { name: "Шевченко Алёна", note: "Обробка замовлень" },
-    ],
-  },
-  {
-    id: "77",
-    name: "2 - Склад Філіал Київ",
-    type: "Філіал",
-    shippingPoint: "1 - Головний склад Одеса",
-    addedAt: "2021-10-26T08:40:00",
-    updatedAt: "2025-10-25T08:52:00",
-    employees: [
-      { name: "Слобік Дмитрій", note: "Куратор регіону" },
-      { name: "Рудак Оксана", note: "Сповіщення про замовлення" },
-    ],
-  },
-  {
-    id: "79",
-    name: "3 - Склад Філіал Луцьк",
-    type: "Філіал",
-    shippingPoint: "1 - Головний склад Одеса",
-    addedAt: "2021-10-26T08:17:00",
-    updatedAt: "2025-10-12T12:23:00",
-    employees: [
-      { name: "Кравчук Олег", note: "Логістика" },
-      { name: "Слобік Дмитрій", note: "Координація" },
-    ],
-  },
-  {
-    id: "84",
-    name: "4 - Склад Філіал Рівне",
-    type: "Філіал",
-    shippingPoint: "1 - Головний склад Одеса",
-    addedAt: "2021-10-26T08:17:00",
-    updatedAt: "2025-10-12T16:25:00",
-    employees: [
-      { name: "Слободянюк Ірина", note: "Контроль залишків" },
-      { name: "Слобік Дмитрій", note: "Куратор" },
-    ],
-  },
-  {
-    id: "88",
-    name: "5 - Склад Філіал Хмельницький",
-    type: "Філіал",
-    shippingPoint: "1 - Головний склад Одеса",
-    addedAt: "2021-10-26T08:17:00",
-    updatedAt: "2025-10-12T12:54:00",
-    employees: [
-      { name: "Мельник Сергій", note: "Прийом замовлень" },
-      { name: "Слобік Дмитрій", note: "Куратор" },
-    ],
-  },
-  {
-    id: "92",
-    name: "Таможений склад",
-    type: "Філіал",
-    shippingPoint: "1 - Головний склад Одеса",
-    addedAt: "2022-08-02T18:28:00",
-    updatedAt: "2025-10-12T18:23:00",
-    employees: [
-      { name: "Поповський Віктор", note: "Координація імпорту" },
-      { name: "Слобік Дмитрій", note: "Підтвердження замовлень" },
-    ],
-  },
-];
-
-const initialStores = [
-  {
-    id: "68",
-    name: "100 - Магазин на Промисловій Одеса",
-    type: "Магазин",
-    shippingPoint: "100 - Магазин на Промисловій Одеса",
-    sourceBranch: "1 - Головний склад Одеса",
-    addedAt: "2022-10-03T12:14:00",
-    updatedAt: "2025-09-29T08:41:00",
-    employees: [
-      { name: "Поліщук Віктор", note: "Оновлення залишків" },
-      { name: "Слобік Дмитрій", note: "Керуючий" },
-    ],
-  },
-  {
-    id: "100",
-    name: "103 - Магазин Ільфа та Петрова",
-    type: "Магазин",
-    shippingPoint: "103 - Магазин Ільфа та Петрова",
-    sourceBranch: "2 - Склад Філіал Київ",
-    addedAt: "2023-04-12T09:00:00",
-    updatedAt: "2025-10-20T17:32:00",
-    employees: [
-      { name: "Черненко Олена", note: "Замовлення клієнтів" },
-      { name: "Бондар Володимир", note: "Підтримка магазину" },
-    ],
-  },
-  {
-    id: "108",
-    name: "108 - Магазин Раскідайловська",
-    type: "Магазин",
-    shippingPoint: "108 - Магазин Раскідайловська",
-    sourceBranch: "1 - Головний склад Одеса",
-    addedAt: "2024-02-15T10:11:00",
-    updatedAt: "2025-10-18T09:45:00",
-    employees: [
-      { name: "Дяченко Павло", note: "Стежить за залишками" },
-      { name: "Слобік Дмитрій", note: "Керівник точки" },
-    ],
-  },
-];
-
-const initialSalesDepartments = [
-  {
-    id: "94",
-    name: "ОП Одеса",
-    type: "Відділ продажу",
-    addedAt: "2023-09-29T06:12:00",
-    updatedAt: "2025-09-29T06:12:00",
-    employees: [
-      { name: "Слобік Дмитрій", note: "Старший менеджер" },
-      { name: "Тест Тест", note: "Асистент" },
-    ],
-    assignedClients: [
-      { name: "ТОВ Мікс Ін.", shippingPoint: "100 - Магазин на Промисловій Одеса" },
-      { name: "Rasmussen and Gomez Plc", shippingPoint: "1 - Головний склад Одеса" },
-      { name: "ООП Мітія В.А.", shippingPoint: "103 - Магазин Ільфа та Петрова" },
-    ],
-  },
-];
 
 function ActionPill({ icon: Icon, label, disabled, onClick }) {
   const baseClasses =
@@ -382,7 +270,7 @@ function EmployeeList({ employees }) {
   return (
     <ul className="space-y-2">
       {employees.map((employee) => (
-        <li key={employee.name} className="text-sm text-gray-700">
+        <li key={employee.id ?? employee.localId ?? employee.name} className="text-sm text-gray-700">
           <span className="font-medium text-gray-900">{employee.name}</span>
           {employee.note ? (
             <span className="block text-xs text-gray-500">{employee.note}</span>
@@ -393,187 +281,145 @@ function EmployeeList({ employees }) {
   );
 }
 
-function buildActionContext({
-  actionKey,
-  entityType,
-  entityName,
-  label,
-  shippingPoint,
-  sourceBranch,
-  assignedClients = [],
-}) {
-  const entityLabelMap = {
-    branch: "Філіал",
-    store: "Магазин",
-    sales: "Відділ продажу",
+function EmployeeSelector({ selectedEmployees, onAdd, onRemove, userOptions, usersLoading, loadError }) {
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const assignedEmployees = selectedEmployees ?? [];
+
+  const availableOptions = useMemo(() => {
+    const source = Array.isArray(userOptions) ? userOptions : [];
+    const takenIds = new Set(
+      assignedEmployees
+        .map((employee) => employee.userId)
+        .filter((value) => value != null)
+    );
+    return source.filter((user) => !takenIds.has(user.id));
+  }, [assignedEmployees, userOptions]);
+
+  const filteredOptions = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return availableOptions;
+    return availableOptions.filter((option) => {
+      const haystack = `${option.displayName ?? ""} ${option.email ?? ""}`.toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [availableOptions, searchTerm]);
+
+  const handleAddClick = () => {
+    if (!selectedUserId) return;
+    const user = (Array.isArray(userOptions) ? userOptions : []).find(
+      (option) => option.id === selectedUserId
+    );
+    if (user) {
+      onAdd(user);
+      setSelectedUserId("");
+    }
   };
 
-  const displayName = `${entityLabelMap[entityType] || "Підрозділ"} «${entityName}»`;
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <h4 className="text-sm font-semibold text-gray-800">Працівники</h4>
+          <p className="text-xs text-gray-500">Додайте зареєстрованих користувачів до підрозділу.</p>
+        </div>
+      </div>
 
-  switch (actionKey) {
-    case "loadStock": {
-      const isStore = entityType === "store";
-      return {
-        icon: FaTruck,
-        title: label,
-        subtitle: displayName,
-        lead: isStore
-          ? `${displayName} має щоденно оновлювати залишки, аби клієнти бачили актуальний асортимент.`
-          : `${displayName} відповідає за відвантаження та контроль залишків для магазинів.`,
-        steps: [
-          "Перейдіть у розділ «Перегляд наявності».",
-          isStore
-            ? "Оновіть залишки вручну або завантажте підготовлений файл зі складськими даними."
-            : "Підготуйте актуальний файл з залишками та внесіть його у систему.",
-          shippingPoint
-            ? `Після збереження даних сповіщення автоматично піде на точку «${shippingPoint}».`
-            : "Після збереження даних система сповістить закріплених співробітників.",
-        ],
-        note: "Видимість товарів у каталозі залежить від актуальності цього оновлення.",
-      };
-    }
-    case "notifications": {
-      const isSales = entityType === "sales";
-      return {
-        icon: FaBell,
-        title: label,
-        subtitle: displayName,
-        lead: isSales
-          ? "Менеджери повинні оперативно отримувати заявки своїх клієнтів. Переконайтесь, що канали сповіщень налаштовані."
-          : "Налаштуйте, хто отримує оперативні сповіщення та в якому форматі.",
-        steps: isSales
-          ? [
-              "У розділі «Користувачі» перевірте, що кожен клієнт має призначеного менеджера з цього відділу.",
-              "Відкрийте картку менеджера та додайте робочі e-mail і месенджер, на які слід дублювати сповіщення.",
-              assignedClients.length
-                ? `Для ${assignedClients.length} клієнтів можна налаштувати резервну пошту (наприклад, sales@mixon.ua) у полі «Додаткові копії».`
-                : "Для кожного клієнта вкажіть резервну пошту (наприклад, sales@mixon.ua) у полі «Додаткові копії».",
-            ]
-          : [
-              "У розділі «Користувачі» перевірте, що всі відповідальні співробітники прив'язані до підрозділу.",
-              shippingPoint
-                ? `Сповіщення дублюються на точку відвантаження «${shippingPoint}». Переконайтесь, що поштові адреси актуальні.`
-                : "Перевірте, що контактні дані працівників актуальні.",
-              "За потреби додайте резервний канал (e-mail, месенджер) у профілі користувача.",
-            ],
-        note: isSales
-          ? "Після підключення push-каналу менеджери зможуть отримувати миттєві повідомлення у мобільному застосунку."
-          : "Розширені канали (SMS, Viber) будуть доступні після запуску нового модуля сповіщень.",
-      };
-    }
-    case "history": {
-      const isSales = entityType === "sales";
-      return {
-        icon: FaHistory,
-        title: label,
-        subtitle: displayName,
-        lead: isSales
-          ? "Проаналізуйте історію замовлень клієнтів, закріплених за менеджерами відділу продажу."
-          : "Перегляньте та проаналізуйте повну хронологію замовлень.",
-        steps: isSales
-          ? [
-              "У розділі «Замовлення товарів» відкрийте фільтри та виберіть відповідальних менеджерів з цього відділу.",
-              "Сортуйте за клієнтом або датою, щоб побачити повторні замовлення та середній чек.",
-              "Сформуйте XLS-звіт, щоб підготувати персональні пропозиції для активних клієнтів.",
-            ]
-          : [
-              "Перейдіть у розділ «Замовлення товарів».",
-              "Встановіть фільтр за вашим підрозділом і датами, щоб отримати потрібну вибірку.",
-              "За потреби експортуйте таблицю у XLS для внутрішньої звітності.",
-            ],
-        note: isSales
-          ? "Дані історії допомагають готувати апселл-пропозиції та контролювати активність клієнтів."
-          : "Історія замовлень допомагає швидко знайти повторні запити клієнтів.",
-      };
-    }
-    case "submitOrder": {
-      return {
-        icon: FaClipboardList,
-        title: label,
-        subtitle: displayName,
-        lead: sourceBranch
-          ? `${displayName} може сформувати заявку на поповнення зі складу «${sourceBranch}».`
-          : `${displayName} може сформувати заявку на поповнення товарів до відповідального складу.`,
-        steps: [
-          "Перейдіть у розділ «Замовлення товарів» або «Замовлення по кодах».",
-          "Додайте позиції, вкажіть необхідну кількість та перевірте наявність альтернатив.",
-          sourceBranch
-            ? `Після підтвердження система надішле заявку на філіал «${sourceBranch}» і сповістить відповідальних.`
-            : "Після підтвердження система сповістить відповідальний філіал та менеджера.",
-        ],
-        note: "Заявка з'явиться в історії замовлень одразу після відправлення.",
-      };
-    }
-    case "assignManager": {
-      return {
-        icon: FaUsers,
-        title: label,
-        subtitle: displayName,
-        lead: "Призначте відповідального менеджера кожному новому користувачу одразу після реєстрації.",
-        steps: [
-          "Перейдіть у розділ «Користувачі» та відсортуйте список за новими реєстраціями.",
-          "Відкрийте картку клієнта та у блоці ролей оберіть менеджера з цього відділу продажу.",
-          "Збережіть зміни, щоб менеджер почав отримувати сповіщення та бачити історію замовлень клієнта.",
-        ],
-        note: "Після призначення менеджера сповіщення надсилатимуться одночасно на його пошту та на точку відвантаження клієнта.",
-      };
-    }
-    default:
-      return {
-        icon: FaClipboardList,
-        title: label,
-        subtitle: displayName,
-        lead: "Дія перебуває у розробці. Скористайтеся контактами менеджера для ручного опрацювання.",
-        steps: [
-          "Зберіть необхідну інформацію та передайте її відповідальному менеджеру.",
-        ],
-      };
-  }
+      {usersLoading ? (
+        <div className="text-xs text-gray-500">Завантаження списку користувачів…</div>
+      ) : loadError ? (
+        <div className="text-xs text-red-500">{loadError}</div>
+      ) : (
+        <div className="space-y-2">
+          <input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Пошук за іменем або email"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <div className="flex flex-col sm:flex-row gap-2">
+            <select
+              value={selectedUserId}
+              onChange={(event) => setSelectedUserId(event.target.value)}
+              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Оберіть користувача…</option>
+              {filteredOptions.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.displayName}
+                  {user.email ? ` · ${user.email}` : ""}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={handleAddClick}
+              disabled={!selectedUserId}
+              className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700"
+            >
+              Додати
+            </button>
+          </div>
+        </div>
+      )}
+
+      {assignedEmployees.length === 0 ? (
+        <p className="text-xs text-gray-500">
+          Працівників ще не призначено. Додайте хоча б одного, щоб мати контактну особу.
+        </p>
+      ) : (
+        <ul className="flex flex-wrap gap-2">
+          {assignedEmployees.map((employee) => (
+            <li key={employee.id ?? employee.localId ?? employee.name}>
+              <span className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-medium">
+                <span>
+                  {employee.name}
+                  {employee.email ? (
+                    <span className="ml-1 text-[11px] text-indigo-200">{employee.email}</span>
+                  ) : null}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRemove(employee)}
+                  className="text-indigo-400 hover:text-indigo-600"
+                >
+                  ×
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
-function ActionDialog({ context, onClose }) {
-  if (!context) return null;
-  const Icon = context.icon;
+function ConfirmDialog({ isOpen, title, message, onConfirm, onCancel }) {
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={onClose}
-        aria-hidden="true"
-      ></div>
-      <div className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl overflow-hidden">
-        <header className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-          <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
-            <Icon />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">{context.title}</h3>
-            <p className="text-sm text-gray-500">{context.subtitle}</p>
-          </div>
-        </header>
-        <div className="px-6 py-5 space-y-4">
-          <p className="text-sm text-gray-600">{context.lead}</p>
-          <ul className="list-disc list-inside space-y-2 text-sm text-gray-700">
-            {context.steps.map((step, index) => (
-              <li key={`${context.title}-${index}`}>{step}</li>
-            ))}
-          </ul>
-          {context.note ? (
-            <div className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-sm rounded-lg px-4 py-3">
-              {context.note}
-            </div>
-          ) : null}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
         </div>
-        <footer className="px-6 py-4 border-t border-gray-100 flex justify-end">
+        <div className="px-6 py-4">
+          <p className="text-gray-700">{message}</p>
+        </div>
+        <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3">
           <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800"
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
           >
-            Закрити
+            Скасувати
           </button>
-        </footer>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition"
+          >
+            Видалити
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -601,45 +447,43 @@ function Toast({ toast, onDismiss }) {
   );
 }
 
-function DepartmentEditor({ state, onClose, onSave }) {
-  const { isOpen, entity } = state;
+function DepartmentEditor({ state, onClose, onSave, userOptions, usersLoading, userLoadError }) {
+  const { isOpen, entity, section, mode } = state;
+  const isCreate = mode === "create";
+  const crumbLabel = isCreate ? "Створити підрозділ" : "Редагувати підрозділ";
+  const ActionIcon = isCreate ? FaPlus : FaEdit;
+  const defaultType = SECTION_TYPE_MAP[section] ?? "branch";
   const [localState, setLocalState] = useState(() => {
-    if (!entity) {
-      return {
-        id: "",
-        name: "",
-        type: "Філіал",
-        employees: [],
-        shippingPoint: "",
-        sourceBranch: "",
-      };
-    }
+    const seed = entity ?? {};
     return {
-      id: entity.id,
-      name: entity.name,
-      type: entity.type,
-      employees: entity.employees || [],
-      shippingPoint: entity.shippingPoint || "",
-      sourceBranch: entity.sourceBranch || "",
+      id: seed.id ?? null,
+      name: seed.name ?? "",
+      typeKey: seed.typeKey ?? defaultType,
+      employees: seed.employees ?? [],
+      branchId: seed.branchId ?? "",
+      shippingPoint: seed.shippingPoint ?? "",
+      sourceBranchId: seed.sourceBranchId ?? "",
     };
   });
-  const [employeeInput, setEmployeeInput] = useState("");
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    if (entity) {
-      setLocalState({
-        id: entity.id,
-        name: entity.name,
-        type: entity.type,
-        employees: entity.employees || [],
-        shippingPoint: entity.shippingPoint || "",
-        sourceBranch: entity.sourceBranch || "",
-      });
-      setErrors({});
-      setEmployeeInput("");
+    if (!isOpen) {
+      return;
     }
-  }, [entity]);
+
+    const seed = entity ?? {};
+    setLocalState({
+      id: seed.id ?? null,
+      name: seed.name ?? "",
+      typeKey: seed.typeKey ?? defaultType,
+      employees: seed.employees ?? [],
+      branchId: seed.branchId ?? "",
+      shippingPoint: seed.shippingPoint ?? "",
+      sourceBranchId: seed.sourceBranchId ?? "",
+    });
+    setErrors({});
+  }, [defaultType, entity, isOpen]);
 
   useEffect(() => {
     const handleEsc = (event) => {
@@ -653,27 +497,47 @@ function DepartmentEditor({ state, onClose, onSave }) {
     return () => window.removeEventListener("keydown", handleEsc);
   }, [isOpen, onClose]);
 
-  if (!isOpen || !entity) return null;
+  if (!isOpen) return null;
 
-  const addEmployee = () => {
-    if (!employeeInput.trim()) return;
-    setLocalState((prev) => ({
-      ...prev,
-      employees: [
-        ...prev.employees,
-        {
-          name: employeeInput.trim(),
-          note: "",
-        },
-      ],
-    }));
-    setEmployeeInput("");
+  const addEmployee = (employee) => {
+    if (!employee) return;
+    setLocalState((prev) => {
+      const exists = prev.employees.some((item) => item.userId === employee.id);
+      if (exists) {
+        return prev;
+      }
+      return {
+        ...prev,
+        employees: [
+          ...prev.employees,
+          {
+            id: null,
+            userId: employee.id,
+            name: employee.displayName,
+            email: employee.email,
+            localId: generateLocalId(),
+            note: "",
+          },
+        ],
+      };
+    });
   };
 
-  const removeEmployee = (name) => {
+  const removeEmployee = (target) => {
     setLocalState((prev) => ({
       ...prev,
-      employees: prev.employees.filter((employee) => employee.name !== name),
+      employees: prev.employees.filter((employee) => {
+        if (target?.userId && employee.userId) {
+          return employee.userId !== target.userId;
+        }
+        if (target?.id && employee.id) {
+          return employee.id !== target.id;
+        }
+        if (target?.localId && employee.localId) {
+          return employee.localId !== target.localId;
+        }
+        return employee.name !== target?.name;
+      }),
     }));
   };
 
@@ -682,14 +546,8 @@ function DepartmentEditor({ state, onClose, onSave }) {
     if (!localState.name.trim()) {
       nextErrors.name = "Вкажіть назву підрозділу";
     }
-    if (!localState.type) {
+    if (!localState.typeKey) {
       nextErrors.type = "Оберіть тип";
-    }
-    if (localState.type !== "Відділ продажу" && !localState.shippingPoint.trim()) {
-      nextErrors.shippingPoint = "Заповніть точку відвантаження";
-    }
-    if (localState.type === "Магазин" && !localState.sourceBranch.trim()) {
-      nextErrors.sourceBranch = "Вкажіть філіал-відправник";
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -697,14 +555,13 @@ function DepartmentEditor({ state, onClose, onSave }) {
       return;
     }
 
-    onSave(entity.id, {
-      ...entity,
+    onSave({
+      id: localState.id,
       name: localState.name.trim(),
-      type: localState.type,
+      typeKey: localState.typeKey,
       employees: localState.employees,
-      shippingPoint: localState.shippingPoint.trim(),
-      sourceBranch:
-        localState.type === "Магазин" ? localState.sourceBranch.trim() : entity.sourceBranch,
+      mode,
+      section,
     });
   };
 
@@ -718,15 +575,21 @@ function DepartmentEditor({ state, onClose, onSave }) {
             <span>/</span>
             <span>Відділи</span>
             <span>/</span>
-            <span className="text-indigo-600 font-medium">Редагувати підрозділ</span>
+            <span className="text-indigo-600 font-medium">{crumbLabel}</span>
           </nav>
           <div className="mt-3 flex items-center gap-3">
             <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
-              <FaEdit />
+              <ActionIcon />
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-gray-900">Редагувати підрозділ</h3>
-              <p className="text-sm text-gray-500">Оновіть назву, тип та закріплених працівників.</p>
+              <h3 className="text-xl font-semibold text-gray-900">
+                {crumbLabel}
+              </h3>
+              <p className="text-sm text-gray-500">
+                {isCreate
+                  ? "Заповніть дані щоб додати новий підрозділ."
+                  : "Оновіть назву, тип та закріплених працівників."}
+              </p>
             </div>
           </div>
         </header>
@@ -743,115 +606,29 @@ function DepartmentEditor({ state, onClose, onSave }) {
                 className={`border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                   errors.name ? "border-red-400" : "border-gray-200"
                 }`}
-                placeholder="Введіть назву"
+                placeholder="Наприклад, Київський офіс"
               />
               {errors.name ? (
                 <span className="text-xs text-red-500">{errors.name}</span>
               ) : null}
             </label>
 
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium text-gray-700">Тип *</span>
-              <select
-                value={localState.type}
-                onChange={(event) =>
-                  setLocalState((prev) => ({ ...prev, type: event.target.value }))
-                }
-                className={`border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  errors.type ? "border-red-400" : "border-gray-200"
-                }`}
-              >
-                <option value="Філіал">Філіал</option>
-                <option value="Магазин">Магазин</option>
-                <option value="Відділ продажу">Відділ продажу</option>
-              </select>
-              {errors.type ? (
-                <span className="text-xs text-red-500">{errors.type}</span>
-              ) : null}
-            </label>
-          </div>
-
-          {localState.type !== "Відділ продажу" ? (
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium text-gray-700">Точка відвантаження *</span>
-              <input
-                value={localState.shippingPoint}
-                onChange={(event) =>
-                  setLocalState((prev) => ({ ...prev, shippingPoint: event.target.value }))
-                }
-                className={`border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  errors.shippingPoint ? "border-red-400" : "border-gray-200"
-                }`}
-                placeholder="Наприклад, 1 - Головний склад Одеса"
-              />
-              {errors.shippingPoint ? (
-                <span className="text-xs text-red-500">{errors.shippingPoint}</span>
-              ) : null}
-            </label>
-          ) : null}
-
-          {localState.type === "Магазин" ? (
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium text-gray-700">Філіал-відправник *</span>
-              <input
-                value={localState.sourceBranch}
-                onChange={(event) =>
-                  setLocalState((prev) => ({ ...prev, sourceBranch: event.target.value }))
-                }
-                className={`border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  errors.sourceBranch ? "border-red-400" : "border-gray-200"
-                }`}
-                placeholder="Наприклад, 1 - Головний склад Одеса"
-              />
-              {errors.sourceBranch ? (
-                <span className="text-xs text-red-500">{errors.sourceBranch}</span>
-              ) : null}
-            </label>
-          ) : null}
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-sm font-semibold text-gray-800">Працівники</h4>
-                <p className="text-xs text-gray-500">Введіть ім'я і натисніть Enter, щоб додати нового працівника.</p>
+            <div className="flex flex-col gap-1 text-sm">
+              <span className="font-medium text-gray-700">Тип</span>
+              <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-600">
+                {typeOptions.find((option) => option.key === localState.typeKey)?.label ?? "Підрозділ"}
               </div>
             </div>
-            <input
-              value={employeeInput}
-              onChange={(event) => setEmployeeInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  addEmployee();
-                }
-              }}
-              placeholder="Наприклад, Слобік Дмитрій"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-
-            {localState.employees.length === 0 ? (
-              <p className="text-xs text-gray-500">
-                Працівників ще не призначено. Додайте хоча б одного, щоб мати контактну особу.
-              </p>
-            ) : (
-              <ul className="flex flex-wrap gap-2">
-                {localState.employees.map((employee) => (
-                  <li key={employee.name}>
-                    <span className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-medium">
-                      {employee.name}
-                      <button
-                        type="button"
-                        onClick={() => removeEmployee(employee.name)}
-                        className="text-indigo-500 hover:text-indigo-700"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
+
+          <EmployeeSelector
+            selectedEmployees={localState.employees}
+            onAdd={addEmployee}
+            onRemove={removeEmployee}
+            userOptions={userOptions}
+            usersLoading={usersLoading}
+            loadError={userLoadError}
+          />
         </div>
 
         <footer className="px-6 py-4 border-t border-gray-100 flex justify-between md:justify-end gap-3">
@@ -867,7 +644,7 @@ function DepartmentEditor({ state, onClose, onSave }) {
             onClick={handleSubmit}
             className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700"
           >
-            Зберегти
+            {isCreate ? "Створити" : "Зберегти"}
           </button>
         </footer>
       </div>
@@ -876,10 +653,23 @@ function DepartmentEditor({ state, onClose, onSave }) {
 }
 
 export default function Departments() {
-  const [branches, setBranches] = useState(initialBranches);
-  const [stores, setStores] = useState(initialStores);
-  const [salesDepartments, setSalesDepartments] = useState(initialSalesDepartments);
-  const [editorState, setEditorState] = useState({ isOpen: false, entity: null, section: null });
+  const [branches, setBranches] = useState([]);
+  const [stores, setStores] = useState([]);
+  const [salesDepartments, setSalesDepartments] = useState([]);
+  const [branchOptions, setBranchOptions] = useState([]);
+  const [employeeOptions, setEmployeeOptions] = useState([]);
+  const [areUsersLoading, setAreUsersLoading] = useState(false);
+  const [usersLoadError, setUsersLoadError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [editorState, setEditorState] = useState({
+    isOpen: false,
+    entity: null,
+    section: null,
+    mode: "edit",
+  });
+  const [toast, setToast] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, departmentId: null, section: null });
 
   const aggregatedStats = useMemo(() => {
     const branchEmployeeCount = branches.reduce(
@@ -907,69 +697,194 @@ export default function Departments() {
     };
   }, [branches, salesDepartments, stores]);
 
-  const [actionContext, setActionContext] = useState(null);
-  const [toast, setToast] = useState(null);
-
   useEffect(() => {
     if (!toast) return undefined;
     const timer = setTimeout(() => setToast(null), 3500);
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const closeActionDialog = () => setActionContext(null);
+  const loadDashboard = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await fetchAdminDepartmentsDashboard();
 
-  const handleAction = (entityType, entity, actionKey, label) => {
-    const context = buildActionContext({
-      actionKey,
-      entityType,
-      entityName: entity.name,
-      label,
-      shippingPoint: entity.shippingPoint,
-      sourceBranch: entity.sourceBranch,
-      assignedClients: entity.assignedClients,
-    });
-    setActionContext(context);
-    setToast({ id: Date.now(), label, entityName: entity.name });
-  };
-
-  const openEditor = (section, entity) => {
-    setEditorState({ isOpen: true, entity, section });
-  };
-
-  const closeEditor = () => setEditorState({ isOpen: false, entity: null, section: null });
-
-  const handleSaveEntity = (id, updates) => {
-    const applyUpdate = (list, setter) => {
-      setter((prev) =>
-        prev.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                ...updates,
-                updatedAt: new Date().toISOString(),
-              }
-            : item
-        )
+      setBranches(sortDepartments((data.branches ?? []).map(normalizeDepartment)));
+      setStores(sortDepartments((data.stores ?? []).map(normalizeDepartment)));
+      setSalesDepartments(sortDepartments((data.salesDepartments ?? []).map(normalizeDepartment)));
+      setBranchOptions(
+        (data.branchOptions ?? []).map((branch) => ({
+          id: branch.id,
+          displayName: branch.displayName ?? branch.name ?? branch.code,
+        }))
       );
-    };
-
-    switch (editorState.section) {
-      case "branches":
-        applyUpdate(branches, setBranches);
-        break;
-      case "stores":
-        applyUpdate(stores, setStores);
-        break;
-      case "sales":
-        applyUpdate(salesDepartments, setSalesDepartments);
-        break;
-      default:
-        break;
+    } catch (loadError) {
+      setError(extractErrorMessage(loadError));
+    } finally {
+      setIsLoading(false);
     }
+  }, []);
 
-    setToast({ id: Date.now(), label: "Дані збережено", entityName: updates.name });
-    closeEditor();
+  const loadUsers = useCallback(async () => {
+    try {
+      setAreUsersLoading(true);
+      setUsersLoadError(null);
+      const data = await fetchAdminUsersDashboard();
+      const rawUsers = data?.users ?? data?.Users ?? [];
+      const mapped = rawUsers.map((user) => {
+        const firstLast = [user.firstName ?? user.FirstName, user.lastName ?? user.LastName]
+          .filter(Boolean)
+          .join(" ");
+        const email = user.email ?? user.Email ?? "";
+        const displayName =
+          user.displayName ??
+          user.DisplayName ??
+          (firstLast || email || "Без імені");
+
+        return {
+          id: user.id ?? user.Id ?? "",
+          displayName,
+          email,
+        };
+      });
+      setEmployeeOptions(mapped.filter((option) => option.id));
+    } catch (caught) {
+      setUsersLoadError(
+        caught?.response?.data?.error ??
+          caught?.message ??
+          "Не вдалося завантажити користувачів для призначення"
+      );
+    } finally {
+      setAreUsersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDashboard();
+    loadUsers();
+  }, [loadDashboard, loadUsers]);
+
+  const openEditor = (section, entity = null, mode = "edit") => {
+    setEditorState({ isOpen: true, entity, section, mode });
   };
+
+  const closeEditor = () =>
+    setEditorState({ isOpen: false, entity: null, section: null, mode: "edit" });
+
+  const handleSaveEntity = useCallback(
+    async (updates) => {
+      const { id, mode, section, ...rest } = updates;
+      try {
+        const payload = {
+          name: rest.name,
+          type: rest.typeKey,
+          branchId: rest.branchId || null,
+          sourceBranchId: rest.sourceBranchId || null,
+          employees: (rest.employees ?? []).map((employee) => ({
+            id: employee.id ?? null,
+            userId: employee.userId ?? null,
+            name: employee.name,
+            note: employee.note || null,
+          })),
+        };
+
+        const upsert = (setter, transformer) =>
+          setter((prev) => sortDepartments(transformer(prev)));
+
+        if (mode === "create") {
+          const created = await createAdminDepartment(payload);
+          const normalized = normalizeDepartment(created);
+
+          switch (normalized.typeKey) {
+            case "branch":
+              upsert(setBranches, (prev) => [...prev, normalized]);
+              break;
+            case "store":
+              upsert(setStores, (prev) => [...prev, normalized]);
+              break;
+            case "sales":
+              upsert(setSalesDepartments, (prev) => [...prev, normalized]);
+              break;
+            default:
+              break;
+          }
+
+          setToast({ id: Date.now(), label: "Підрозділ створено", entityName: normalized.name });
+        } else {
+          const updated = await updateAdminDepartment(id, payload);
+          const normalized = normalizeDepartment(updated);
+
+          switch (normalized.typeKey) {
+            case "branch":
+              upsert(setBranches, (prev) =>
+                prev.map((item) => (item.id === normalized.id ? normalized : item))
+              );
+              break;
+            case "store":
+              upsert(setStores, (prev) =>
+                prev.map((item) => (item.id === normalized.id ? normalized : item))
+              );
+              break;
+            case "sales":
+              upsert(setSalesDepartments, (prev) =>
+                prev.map((item) => (item.id === normalized.id ? normalized : item))
+              );
+              break;
+            default:
+              break;
+          }
+
+          setToast({ id: Date.now(), label: "Дані збережено", entityName: normalized.name });
+        }
+
+        closeEditor();
+      } catch (saveError) {
+        setError(extractErrorMessage(saveError));
+      }
+    },
+    [closeEditor]
+  );
+
+  const openDeleteConfirm = (departmentId, section) => {
+    setDeleteConfirm({ isOpen: true, departmentId, section });
+  };
+
+  const closeDeleteConfirm = () => {
+    setDeleteConfirm({ isOpen: false, departmentId: null, section: null });
+  };
+
+  const handleDeleteDepartment = useCallback(
+    async () => {
+      const { departmentId, section } = deleteConfirm;
+      closeDeleteConfirm();
+
+      try {
+        await deleteAdminDepartment(departmentId);
+
+        const removeFromList = (setter) =>
+          setter((prev) => prev.filter((item) => item.id !== departmentId));
+
+        switch (section) {
+          case "branches":
+            removeFromList(setBranches);
+            break;
+          case "stores":
+            removeFromList(setStores);
+            break;
+          case "sales":
+            removeFromList(setSalesDepartments);
+            break;
+          default:
+            break;
+        }
+
+        setToast({ id: Date.now(), label: "Підрозділ видалено", entityName: "" });
+      } catch (deleteError) {
+        setError(extractErrorMessage(deleteError));
+      }
+    },
+    [deleteConfirm]
+  );
 
   const metrics = [
     {
@@ -1069,6 +984,18 @@ export default function Departments() {
             })}
           </section>
 
+          {error ? (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+              {error}
+            </div>
+          ) : null}
+
+          {isLoading ? (
+            <section className="bg-white border border-gray-200 rounded-xl shadow p-6 text-center text-gray-600">
+              Завантаження даних підрозділів...
+            </section>
+          ) : null}
+
           <section className="bg-white rounded-xl shadow border border-gray-200">
             <header className="px-4 md:px-6 py-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
@@ -1080,16 +1007,14 @@ export default function Departments() {
                   Використовуються магазинами та клієнтами як точки відвантаження.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2 text-xs text-gray-600">
-                <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full">
-                  <FaTruck /> Завантаження залишків
-                </span>
-                <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 px-3 py-1 rounded-full">
-                  <FaBell /> Сповіщення про замовлення
-                </span>
-                <span className="inline-flex items-center gap-1 bg-slate-50 text-slate-600 px-3 py-1 rounded-full">
-                  <FaHistory /> Історія замовлень
-                </span>
+              <div className="flex flex-col md:flex-row md:items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => openEditor("branches", null, "create")}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+                >
+                  <FaPlus /> Новий філіал
+                </button>
               </div>
             </header>
             <div className="px-4 py-4 md:hidden">
@@ -1098,8 +1023,8 @@ export default function Departments() {
                   <BranchMobileCard
                     key={`${branch.id}-mobile`}
                     branch={branch}
-                    onAction={handleAction}
                     onEdit={() => openEditor("branches", branch)}
+                    onDelete={() => openDeleteConfirm(branch.id, "branches")}
                   />
                 ))}
               </div>
@@ -1109,12 +1034,12 @@ export default function Departments() {
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50 text-gray-500 uppercase text-xs">
                   <tr>
-                    <th className="px-6 py-3 text-left">ID</th>
+                    <th className="px-6 py-3 text-left w-16">ID</th>
                     <th className="px-6 py-3 text-left">Назва</th>
-                    <th className="px-6 py-3 text-left">Додано</th>
-                    <th className="px-6 py-3 text-left">Оновлено</th>
-                    <th className="px-6 py-3 text-left">Працівники</th>
-                    <th className="px-6 py-3 text-left">Дії</th>
+                    <th className="px-6 py-3 text-left w-32">Додано</th>
+                    <th className="px-6 py-3 text-left w-32">Оновлено</th>
+                    <th className="px-6 py-3 text-left w-48">Працівники</th>
+                    <th className="px-6 py-3 text-left w-40">Дії</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1133,26 +1058,16 @@ export default function Departments() {
                         <EmployeeList employees={branch.employees} />
                       </td>
                       <td className="px-6 py-3">
-                        <div className="flex flex-wrap gap-2">
-                          <ActionPill
-                            icon={FaTruck}
-                            label="Завантажити наявність"
-                            onClick={() => handleAction("branch", branch, "loadStock", "Завантажити наявність")}
-                          />
-                          <ActionPill
-                            icon={FaBell}
-                            label="Сповіщення"
-                            onClick={() => handleAction("branch", branch, "notifications", "Сповіщення")}
-                          />
-                          <ActionPill
-                            icon={FaHistory}
-                            label="Історія"
-                            onClick={() => handleAction("branch", branch, "history", "Історія")}
-                          />
+                        <div className="flex gap-2">
                           <ActionPill
                             icon={FaEdit}
                             label="Редагувати"
                             onClick={() => openEditor("branches", branch)}
+                          />
+                          <ActionPill
+                            icon={FaTrash}
+                            label="Видалити"
+                            onClick={() => openDeleteConfirm(branch.id, "branches")}
                           />
                         </div>
                       </td>
@@ -1174,6 +1089,13 @@ export default function Departments() {
                   Менеджери, закріплені за клієнтами. Налаштовуйте сповіщення та контролюйте історію замовлень.
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => openEditor("sales", null, "create")}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+              >
+                <FaPlus /> Новий відділ продажу
+              </button>
             </header>
             <div className="px-4 py-4 md:hidden">
               <div className="grid gap-4">
@@ -1181,8 +1103,8 @@ export default function Departments() {
                   <SalesMobileCard
                     key={`${department.id}-mobile`}
                     department={department}
-                    onAction={handleAction}
                     onEdit={() => openEditor("sales", department)}
+                    onDelete={() => openDeleteConfirm(department.id, "sales")}
                   />
                 ))}
               </div>
@@ -1191,12 +1113,12 @@ export default function Departments() {
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50 text-gray-500 uppercase text-xs">
                   <tr>
-                    <th className="px-6 py-3 text-left">ID</th>
+                    <th className="px-6 py-3 text-left w-16">ID</th>
                     <th className="px-6 py-3 text-left">Назва</th>
-                    <th className="px-6 py-3 text-left">Додано</th>
-                    <th className="px-6 py-3 text-left">Оновлено</th>
-                    <th className="px-6 py-3 text-left">Менеджери</th>
-                    <th className="px-6 py-3 text-left">Дії</th>
+                    <th className="px-6 py-3 text-left w-32">Додано</th>
+                    <th className="px-6 py-3 text-left w-32">Оновлено</th>
+                    <th className="px-6 py-3 text-left w-48">Працівники</th>
+                    <th className="px-6 py-3 text-left w-40">Дії</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1223,37 +1145,16 @@ export default function Departments() {
                         <EmployeeList employees={department.employees} />
                       </td>
                       <td className="px-6 py-3">
-                        <div className="flex flex-wrap gap-2">
-                          <ActionPill
-                            icon={FaUsers}
-                            label="Призначити менеджера"
-                            onClick={() =>
-                              handleAction(
-                                "sales",
-                                department,
-                                "assignManager",
-                                "Призначити менеджера"
-                              )
-                            }
-                          />
-                          <ActionPill
-                            icon={FaBell}
-                            label="Сповіщення"
-                            onClick={() =>
-                              handleAction("sales", department, "notifications", "Сповіщення")
-                            }
-                          />
-                          <ActionPill
-                            icon={FaHistory}
-                            label="Історія"
-                            onClick={() =>
-                              handleAction("sales", department, "history", "Історія")
-                            }
-                          />
+                        <div className="flex gap-2">
                           <ActionPill
                             icon={FaEdit}
                             label="Редагувати"
                             onClick={() => openEditor("sales", department)}
+                          />
+                          <ActionPill
+                            icon={FaTrash}
+                            label="Видалити"
+                            onClick={() => openDeleteConfirm(department.id, "sales")}
                           />
                         </div>
                       </td>
@@ -1275,6 +1176,13 @@ export default function Departments() {
                   Торгові точки, що працюють з кінцевими клієнтами та роблять замовлення на філіали.
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => openEditor("stores", null, "create")}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+              >
+                <FaPlus /> Новий магазин
+              </button>
             </header>
             <div className="px-4 py-4 md:hidden">
               <div className="grid gap-4">
@@ -1282,8 +1190,8 @@ export default function Departments() {
                   <StoreMobileCard
                     key={`${store.id}-mobile`}
                     store={store}
-                    onAction={handleAction}
                     onEdit={() => openEditor("stores", store)}
+                    onDelete={() => openDeleteConfirm(store.id, "stores")}
                   />
                 ))}
               </div>
@@ -1292,13 +1200,12 @@ export default function Departments() {
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50 text-gray-500 uppercase text-xs">
                   <tr>
-                    <th className="px-6 py-3 text-left">ID</th>
+                    <th className="px-6 py-3 text-left w-16">ID</th>
                     <th className="px-6 py-3 text-left">Назва</th>
-                    <th className="px-6 py-3 text-left">Філіал-відправник</th>
-                    <th className="px-6 py-3 text-left">Додано</th>
-                    <th className="px-6 py-3 text-left">Оновлено</th>
-                    <th className="px-6 py-3 text-left">Працівники</th>
-                    <th className="px-6 py-3 text-left">Дії</th>
+                    <th className="px-6 py-3 text-left w-32">Додано</th>
+                    <th className="px-6 py-3 text-left w-32">Оновлено</th>
+                    <th className="px-6 py-3 text-left w-48">Працівники</th>
+                    <th className="px-6 py-3 text-left w-40">Дії</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1311,38 +1218,22 @@ export default function Departments() {
                           <FaMapMarkerAlt /> {store.shippingPoint}
                         </p>
                       </td>
-                      <td className="px-6 py-3 text-gray-600">{store.sourceBranch}</td>
                       <td className="px-6 py-3 text-gray-600">{formatDate(store.addedAt)}</td>
                       <td className="px-6 py-3 text-gray-600">{formatDateTime(store.updatedAt)}</td>
                       <td className="px-6 py-3">
                         <EmployeeList employees={store.employees} />
                       </td>
                       <td className="px-6 py-3">
-                        <div className="flex flex-wrap gap-2">
-                          <ActionPill
-                            icon={FaTruck}
-                            label="Завантажити наявність"
-                            onClick={() => handleAction("store", store, "loadStock", "Завантажити наявність")}
-                          />
-                          <ActionPill
-                            icon={FaBell}
-                            label="Сповіщення"
-                            onClick={() => handleAction("store", store, "notifications", "Сповіщення")}
-                          />
-                          <ActionPill
-                            icon={FaClipboardList}
-                            label="Замовити на філіал"
-                            onClick={() => handleAction("store", store, "submitOrder", "Замовити на філіал")}
-                          />
-                          <ActionPill
-                            icon={FaHistory}
-                            label="Історія"
-                            onClick={() => handleAction("store", store, "history", "Історія")}
-                          />
+                        <div className="flex gap-2">
                           <ActionPill
                             icon={FaEdit}
                             label="Редагувати"
                             onClick={() => openEditor("stores", store)}
+                          />
+                          <ActionPill
+                            icon={FaTrash}
+                            label="Видалити"
+                            onClick={() => openDeleteConfirm(store.id, "stores")}
                           />
                         </div>
                       </td>
@@ -1353,9 +1244,23 @@ export default function Departments() {
             </div>
           </section>
 
-          <ActionDialog context={actionContext} onClose={closeActionDialog} />
-          <DepartmentEditor state={editorState} onClose={closeEditor} onSave={handleSaveEntity} />
+          <DepartmentEditor
+            state={editorState}
+            onClose={closeEditor}
+            onSave={handleSaveEntity}
+            branchOptions={branchOptions}
+            userOptions={employeeOptions}
+            usersLoading={areUsersLoading}
+            userLoadError={usersLoadError}
+          />
           <Toast toast={toast} onDismiss={() => setToast(null)} />
+          <ConfirmDialog
+            isOpen={deleteConfirm.isOpen}
+            title="Видалення підрозділу"
+            message="Ви впевнені, що хочете видалити цей підрозділ? Цю дію не можна буде скасувати."
+            onConfirm={handleDeleteDepartment}
+            onCancel={closeDeleteConfirm}
+          />
         </div>
       }
     />

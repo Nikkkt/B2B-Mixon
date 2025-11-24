@@ -1,21 +1,47 @@
-import { Outlet, useLocation, Link } from "react-router-dom"; // <-- Додано Link
+import { Outlet, useLocation, Link, useNavigate } from "react-router-dom"; // <-- Додано Link
 import { 
   FaShoppingCart, FaBarcode, FaEye, FaList, FaHome, FaRegUser, 
   FaCode, FaUpload, FaUsers, FaBuilding, FaMapMarkerAlt, FaLayerGroup, 
-  FaUserCircle, FaShoppingBag, FaSignOutAlt, FaBars, FaTimes, FaHistory // <-- Додано FaBars, FaTimes
+  FaUserCircle, FaShoppingBag, FaSignOutAlt, FaBars, FaTimes, FaHistory,
+  FaFileUpload
 } from "react-icons/fa";
 import { useState } from "react";
 import logo from "../assets/logo.png";
 import { useCart } from "../context/CartContext.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 import CartDrawer from "./cart/CartDrawer.jsx";
 
-const userRole = "admin"; 
+const resolveRole = (role) => {
+  if (typeof role === "string") {
+    return role.toLowerCase();
+  }
+
+  if (typeof role === "number") {
+    switch (role) {
+      case 2:
+        return "admin";
+      case 1:
+        return "manager";
+      default:
+        return "user";
+    }
+  }
+
+  if (role && typeof role === "object" && "name" in role) {
+    return String(role.name).toLowerCase();
+  }
+
+  return null;
+};
 
 export default function HomeLayout({children}) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // <-- Новий стан для сайдбару
-  const { totalQuantity, toggleDrawer } = useCart();
+  const { totalQuantity, toggleDrawer, clearCart, setComment, setOrderType, setPaymentMethod } = useCart();
+  const { user, logout } = useAuth();
+  const userRole = resolveRole(user?.role);
 
   const getPageTitle = () => {
     // ... (функція getPageTitle залишається без змін) ...
@@ -36,8 +62,14 @@ export default function HomeLayout({children}) {
   };
 
   const handleLogout = () => {
-    alert("Вихід з акаунту");
+    clearCart();
+    setComment("");
+    setOrderType("Текущий");
+    setPaymentMethod("Наличный");
+    logout();
     setIsUserMenuOpen(false);
+    setIsSidebarOpen(false);
+    navigate("/login", { replace: true });
   };
 
   const closeMobileSidebar = () => {
@@ -46,7 +78,7 @@ export default function HomeLayout({children}) {
 
   return (
     <div className="flex flex-col h-screen">
-      <div className="flex flex-1 relative min-w-0"> {/* Додано relative для позиціонування сайдбару */}
+      <div className="flex flex-1 relative min-w-0">
         
         {/* Оверлей для закриття мобільного меню */}
         {isSidebarOpen && (
@@ -62,7 +94,7 @@ export default function HomeLayout({children}) {
                      fixed h-full z-20 
                      transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
                      transition-transform duration-300 ease-in-out 
-                     md:relative md:translate-x-0 md:h-auto`} // <-- Логіка для мобільного меню
+                     md:sticky md:top-0 md:h-screen md:translate-x-0`}
         >
           <div className="mb-6 mt-6 flex justify-between items-center">
             <img src={logo} alt="Logo" className="h-18 w-auto" />
@@ -81,6 +113,9 @@ export default function HomeLayout({children}) {
               <li><Link to="/view-availability" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaEye className="mr-2" />Перегляд наявності</Link></li>
               <li><Link to="/view-availability-by-group" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaList className="mr-2" />Перегляд наявності по групах</Link></li>
               <li><Link to="/view-availability-by-code" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaCode className="mr-2" />Перегляд наявності по коду</Link></li>
+              {(userRole === "admin" || userRole === "department") && (
+                <li><Link to="/availability-download" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaFileUpload className="mr-2" />Завантаження наявності</Link></li>
+              )}
               <li><Link to="/order-history" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaHistory className="mr-2" />Історія замовлень</Link></li>
             </ul>
 
@@ -101,7 +136,7 @@ export default function HomeLayout({children}) {
         </aside>
 
         {/* --- ОНОВЛЕНА Основна область --- */}
-        <div className="flex-1 flex flex-col w-full md:w-auto min-w-0"> {/* Контролює ширину */}
+        <div className="flex-1 flex flex-col w-full md:w-auto min-w-0">
           <header className="bg-gray-800 text-white p-4 flex justify-between items-center relative">
             
             {/* --- Нова "Гамбургер" кнопка --- */}
@@ -140,7 +175,6 @@ export default function HomeLayout({children}) {
                   <Link to="/home" onClick={() => setIsUserMenuOpen(false)} className="block px-4 py-2 hover:bg-gray-100 flex items-center"><FaHome className="mr-2" />Головна</Link>
                   <Link to="/profile" onClick={() => setIsUserMenuOpen(false)} className="block px-4 py-2 hover:bg-gray-100 flex items-center"><FaRegUser className="mr-2" />Профіль</Link>
                   <Link to="/cart" onClick={() => setIsUserMenuOpen(false)} className="block px-4 py-2 hover:bg-gray-100 flex items-center"><FaShoppingBag className="mr-2" />Корзина</Link>
-                  <Link to="/order-history" onClick={() => setIsUserMenuOpen(false)} className="block px-4 py-2 hover:bg-gray-100 flex items-center"><FaHistory className="mr-2" />Історія замовлень</Link>
                   <button onClick={handleLogout} className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center"><FaSignOutAlt className="mr-2" />Вийти</button>
                 </div>
               )}

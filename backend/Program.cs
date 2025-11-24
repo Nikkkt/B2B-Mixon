@@ -1,13 +1,20 @@
 using backend.Data;
-using backend.Services;
+using backend.Filters;
+using backend.Seeding;
+using backend.Services.Interfaces;
+using backend.Services.Implementations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using DotNetEnv;
+using System;
+
+// Load .env before the host builds configuration so values are available to providers
+Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load .env
-Env.Load();
+var corsOrigins = Environment.GetEnvironmentVariable("CORS_ORIGINS")?
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
 // DB
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -16,6 +23,33 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IAdminUsersService, AdminUsersService>();
+builder.Services.AddScoped<IAdminDepartmentsService, AdminDepartmentsService>();
+builder.Services.AddScoped<IAdminDirectionsService, AdminDirectionsService>();
+builder.Services.AddScoped<IAdminProductGroupsService, AdminProductGroupsService>();
+builder.Services.AddScoped<IOrdersCatalogService, OrdersCatalogService>();
+builder.Services.AddScoped<IAvailabilityService, AvailabilityService>();
+builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IOrderNotificationService, OrderNotificationService>();
+builder.Services.AddScoped<IUserDiscountService, UserDiscountService>();
+
+// CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendPolicy", policy =>
+    {
+        var origins = corsOrigins?.Length > 0
+            ? corsOrigins
+            : new[] { "http://localhost:5173" };
+
+        policy.WithOrigins(origins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
 
 // JWT
 builder.Services.AddAuthentication("Bearer")
@@ -26,11 +60,17 @@ builder.Services.AddAuthentication("Bearer")
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
 
 // Swagger + JWT support
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "ChatApp API", Version = "v1" });
+    c.CustomSchemaIds(type => type.FullName?.Replace('.', '_'));
+    
+    // Support for file uploads in Swagger
+    c.OperationFilter<FileUploadOperationFilter>();
+    
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header. Example: 'Bearer {token}'",
@@ -51,8 +91,25 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-app.UseSwagger();
-app.UseSwaggerUI();
+if (args.Contains("--seed-discounts", StringComparer.OrdinalIgnoreCase))
+{
+    using var scope = app.Services.CreateScope();
+    await DiscountProfileSeeder.SeedAsync(scope.ServiceProvider);
+    Console.WriteLine("Discount profiles seeded successfully.");
+    return;
+}
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "ChatApp API v1");
+        options.DefaultModelsExpandDepth(-1);
+    });
+}
+
+app.UseCors("FrontendPolicy");
 
 app.UseAuthentication();
 app.UseAuthorization();

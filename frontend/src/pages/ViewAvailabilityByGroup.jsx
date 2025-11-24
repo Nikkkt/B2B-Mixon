@@ -1,244 +1,493 @@
-// src/pages/ViewAvailabilityByGroup.jsx
-
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import HomeLayout from "../components/HomeLayout";
-import Select from 'react-select';
-import { FaFilePdf, FaFileExcel } from "react-icons/fa";
+import Select from "react-select";
+import { FaFilePdf, FaFileExcel, FaLayerGroup, FaClipboardList, FaProjectDiagram, FaWarehouse } from "react-icons/fa";
+import {
+  fetchAllAvailabilityDirections,
+  fetchAvailabilityGroups,
+  fetchGroupAvailabilityTable,
+  downloadGroupAvailabilityExcel,
+  downloadGroupAvailabilityPdf
+} from "../api/availabilityApi";
 
-// --- Імітація API / Бекенду ---
-
-// 1. Направлення
-const mockDirections = [
-  { id: 'dir1', name: '01 - Car Refinish - для покраски авто' },
-  { id: 'dir2', name: '02 - Decorative Coating - для строительства и рем' },
-  { id: 'dir3', name: '03 - Industrial - промислові' }
-];
-
-// 2. Групи
-const mockGroups = [
-  { id: 'group1', name: '202 - MIXON - Антикоррозийные краски и грунты', directionId: 'dir2' }, // Прив'язано до dir2
-  { id: 'group2', name: '101 - SOUDAL - CAR REFINISH', directionId: 'dir1' },
-  { id: 'group3', name: '200 - CERESIT - BUILDING', directionId: 'dir2' },
-];
-
-// 3. Список Філіалів (для колонок таблиці) - взято зі скріншоту image_816c83.png
-const mockBranches = [
-  { id: '11', name: '11 - Главный склад Одесса' },
-  { id: '103', name: '103 - Магазин на Ильфа и Петрова Одесса' },
-  { id: '104', name: '104 - Магазин на Малиновского Одесса' },
-  { id: '106', name: '106 - Магазин на Староконном Одесса' },
-  { id: '107', name: '107 - Магазин на Староконном Одесса' }, // Дубль зі скріншоту, може бути помилка
-  { id: '108', name: '108 - Магазин на Раскидайловской Одесса' },
-  { id: '77', name: '77 - Склад Филиал Киев' },
-  { id: '79', name: '79 - Склад Филиал Луцк' },
-  { id: '301', name: '301 - Магазин на Ровенской Луцк' },
-  { id: '302', name: '302 - Магазин на Порика Луцк' },
-  { id: '88', name: '88 - Склад Филиал Ровно' },
-  { id: '7', name: '7 - Склад Филиал Хмельницкий' },
-];
-
-// 4. Дані по групах (з PDF стор. 9 / скріншоту image_816c83.png)
-const mockGroupAvailability = {
-  'group1': [ // 202 - MIXON - Антикоррозийные краски и грунты
-    {
-      id: 1,
-      code: '909-01-1',
-      name: 'Антикорозійний грунт MIXON МІТАЛ БЕЙС сірий 1л',
-      stock: { '11': 947, '103': 111, '104': 0, '106': 20, '107': 0, '108': 6, '77': 9, '79': 0, '301': 21, '302': 0, '88': 0, '7': 17 }
-    },
-    {
-      id: 2,
-      code: '909-02-1',
-      name: 'Антикорозійний грунт MIXON МІТАЛ БЕЙС білий 1л',
-      stock: { '11': 214, '103': 0, '104': 12, '106': 0, '107': 12, '108': 0, '77': 0, '79': 14, '301': 24, '302': 16, '88': 13, '7': 68 }
-    },
-    {
-      id: 3,
-      code: '909-03-1',
-      name: 'Антикорозійний грунт MIXON МІТАЛ БЕЙС чорний 1л',
-      stock: { '11': 45, '103': 0, '104': 0, '106': 1, '107': 0, '108': 10, '77': 0, '79': 11, '301': 0, '302': 3, '88': 0, '7': 2 }
-    },
-    {
-      id: 4,
-      code: '909-04-1',
-      name: 'Антикорозійний грунт MIXON МІТАЛ БЕЙС жовтий 1л',
-      stock: { '11': 281, '103': 20, '104': 0, '106': 1, '107': 0, '108': 0, '77': 4, '79': 10, '301': 6, '302': 7, '88': 0, '7': 4 }
+const customSelectStyles = {
+  control: (provided, state) => ({
+    ...provided,
+    minHeight: "46px",
+    borderRadius: "0.85rem",
+    border: state.isFocused ? "2px solid rgb(59 130 246)" : "1px solid rgba(59, 130, 246, 0.35)",
+    background: "linear-gradient(135deg, rgba(239,246,255,0.95), rgba(219,234,254,0.8))",
+    boxShadow: state.isFocused ? "0 0 0 3px rgba(59,130,246,0.25)" : "0 1px 4px rgba(15, 23, 42, 0.06)",
+    paddingLeft: "0.35rem",
+    transition: "all 150ms ease",
+    "&:hover": {
+      borderColor: "rgba(59,130,246,0.7)"
     }
-  ],
-  'group2': [ // 101 - SOUDAL
-     { id: 5, code: 'S-101-1', name: 'Піна монтажна SOUDAL', stock: { '11': 50, '77': 10, '79': 5, '103': 2 } }
-  ],
-  'group3': [ // 200 - CERESIT
-     { id: 6, code: 'C-50-5', name: 'Клей для плитки CERESIT CM 11, 25кг', stock: { '11': 1000, '104': 50, '7': 20 } }
-  ]
+  }),
+  valueContainer: (provided) => ({
+    ...provided,
+    padding: "0.25rem 0.75rem"
+  }),
+  input: (provided) => ({
+    ...provided,
+    color: "rgb(37, 99, 235)"
+  }),
+  placeholder: (provided) => ({
+    ...provided,
+    color: "rgba(37, 99, 235, 0.7)",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    fontSize: "0.7rem"
+  }),
+  singleValue: (provided) => ({
+    ...provided,
+    color: "rgb(15, 23, 42)",
+    fontWeight: 600
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    backgroundColor: state.isSelected
+      ? "rgba(59,130,246,0.18)"
+      : state.isFocused
+        ? "rgba(59,130,246,0.12)"
+        : "white",
+    color: state.isSelected ? "rgb(37, 99, 235)" : "rgb(15, 23, 42)",
+    borderRadius: "0.5rem",
+    padding: "0.55rem 0.75rem",
+  }),
+  menu: (provided) => ({
+    ...provided,
+    borderRadius: "1rem",
+    padding: "0.35rem",
+    boxShadow: "0 15px 35px rgba(15,23,42,0.12)"
+  }),
+  menuList: (provided) => ({
+    ...provided,
+    borderRadius: "0.6rem",
+    padding: "0.2rem"
+  }),
+  indicatorSeparator: () => ({ display: "none" }),
+  dropdownIndicator: (provided, state) => ({
+    ...provided,
+    color: state.isFocused ? "rgb(37,99,235)" : "rgba(15,23,42,0.4)",
+    transition: "color 150ms ease",
+    "&:hover": { color: "rgb(37,99,235)" }
+  })
 };
 
-
-const fakeApiCall = (data) => new Promise(resolve => {
-  setTimeout(() => resolve(data), 500);
+const formatQuantity = (value) => Number(value ?? 0).toLocaleString("uk-UA", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
 });
-// --- Кінець імітації API ---
-
-const customSelectStyles = { /* ... (Стилі без змін) ... */
-  control: (provided, state) => ({ ...provided, backgroundColor: 'rgb(249 250 251)', border: '1px solid rgb(209 213 219)', borderRadius: '0.375rem', padding: '0.3rem', boxShadow: state.isFocused ? '0 0 0 2px rgb(59 130 246)' : 'none', '&:hover': { borderColor: 'rgb(156 163 175)', } }),
-  option: (provided, state) => ({ ...provided, backgroundColor: state.isSelected ? 'rgb(59 130 246)' : (state.isFocused ? 'rgb(243 244 246)' : 'white'), color: state.isSelected ? 'white' : 'rgb(17 24 39)', }),
-  placeholder: (provided) => ({ ...provided, color: 'rgb(107 114 128)', }),
-  singleValue: (provided) => ({ ...provided, color: 'rgb(17 24 39)', }),
-};
-
 
 export default function ViewAvailabilityByGroup() {
-  // --- (Стани та useEffect без змін) ---
   const [directions, setDirections] = useState([]);
   const [groups, setGroups] = useState([]);
-  const [branches, setBranches] = useState([]);
-  const [products, setProducts] = useState([]);
   const [selectedDirection, setSelectedDirection] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [table, setTable] = useState(null);
+  const [isLoadingDirections, setIsLoadingDirections] = useState(false);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
-  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [isLoadingTable, setIsLoadingTable] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  useEffect(() => { /* Завантаження directions та branches */
-    fakeApiCall(mockDirections).then(data => { setDirections(data); });
-    fakeApiCall(mockBranches).then(data => { setBranches(data); });
+  const directionOptions = useMemo(() => directions.map(direction => ({
+    value: direction.id,
+    label: direction.displayName || direction.name || direction.code || "—"
+  })), [directions]);
+
+  const groupOptions = useMemo(() => groups.map(group => ({
+    value: group.id,
+    label: group.name || group.groupNumber || "—"
+  })), [groups]);
+
+  const branches = table?.branches ?? [];
+  const products = table?.products ?? [];
+  const lastUpdatedLabel = table?.lastUpdatedAt
+    ? new Date(table.lastUpdatedAt).toLocaleString("uk-UA", { dateStyle: "short", timeStyle: "short" })
+    : "";
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoadingDirections(true);
+    setErrorMessage("");
+
+    fetchAllAvailabilityDirections()
+      .then(data => {
+        if (!isMounted) {
+          return;
+        }
+        setDirections(Array.isArray(data) ? data : []);
+      })
+      .catch(error => {
+        if (!isMounted) {
+          return;
+        }
+        setErrorMessage(error?.message || "Не вдалося завантажити напрями.");
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingDirections(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
-  useEffect(() => { /* Завантаження groups */
-    if (selectedDirection) {
-      setIsLoadingGroups(true); setProducts([]); setSelectedGroup(null);
-      fakeApiCall(mockGroups.filter(g => g.directionId === selectedDirection))
-        .then(data => { setGroups(data); setIsLoadingGroups(false); });
-    } else { /* Скидання */ setGroups([]); setProducts([]); setSelectedGroup(null); }
+
+  useEffect(() => {
+    if (!selectedDirection) {
+      setGroups([]);
+      setSelectedGroup(null);
+      setTable(null);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingGroups(true);
+    setGroups([]);
+    setSelectedGroup(null);
+    setTable(null);
+    setErrorMessage("");
+
+    fetchAvailabilityGroups(selectedDirection)
+      .then(data => {
+        if (!isMounted) {
+          return;
+        }
+        setGroups(Array.isArray(data) ? data : []);
+      })
+      .catch(error => {
+        if (!isMounted) {
+          return;
+        }
+        setErrorMessage(error?.message || "Не вдалося завантажити групи товарів.");
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingGroups(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [selectedDirection]);
-  useEffect(() => { /* Завантаження products */
-    if (selectedGroup) {
-      setIsLoadingProducts(true);
-      fakeApiCall(mockGroupAvailability[selectedGroup] || [])
-        .then(data => { setProducts(data); setIsLoadingProducts(false); });
-    } else { setProducts([]); }
+
+  useEffect(() => {
+    if (!selectedGroup) {
+      setTable(null);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingTable(true);
+    setTable(null);
+    setErrorMessage("");
+
+    fetchGroupAvailabilityTable(selectedGroup)
+      .then(data => {
+        if (!isMounted) {
+          return;
+        }
+        setTable(data ?? null);
+      })
+      .catch(error => {
+        if (!isMounted) {
+          return;
+        }
+        setErrorMessage(error?.message || "Не вдалося завантажити таблицю наявності.");
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingTable(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [selectedGroup]);
-  const handlePdfExport = () => { alert("PDF Export..."); };
-  const handleExcelExport = () => { alert("Excel Export..."); };
-  const formatOptions = (data) => { return data.map(item => ({ value: item.id, label: item.name })); };
-  // --- (Кінець незмінної частини) ---
+
+  const handleDirectionChange = (option) => {
+    setSelectedDirection(option ? option.value : null);
+  };
+
+  const handleGroupChange = (option) => {
+    setSelectedGroup(option ? option.value : null);
+  };
+
+  const handleDownload = async (format) => {
+    if (!selectedGroup) {
+      return;
+    }
+
+    try {
+      setExportingFormat(format);
+      const response = format === "excel"
+        ? await downloadGroupAvailabilityExcel(selectedGroup)
+        : await downloadGroupAvailabilityPdf(selectedGroup);
+
+      const contentDisposition = response.headers?.["content-disposition"];
+      const fileNameMatch = contentDisposition
+        ? contentDisposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i)
+        : null;
+      const rawFileName = fileNameMatch?.[1] || fileNameMatch?.[2];
+      let fileName = rawFileName || (format === "excel" ? "group-availability.xlsx" : "group-availability.pdf");
+      try {
+        fileName = decodeURIComponent(fileName);
+      } catch (error) {
+        // ignore decode errors
+      }
+
+      const blob = new Blob([response.data], {
+        type: response.headers?.["content-type"]
+          || (format === "excel"
+            ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            : "application/pdf")
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      setErrorMessage(error?.message || "Не вдалося завантажити файл.");
+    } finally {
+      setExportingFormat(null);
+    }
+  };
+
+  const handleExcelExport = () => handleDownload("excel");
+  const handlePdfExport = () => handleDownload("pdf");
+
+  const selectedDirectionLabel = directionOptions.find(option => option.value === selectedDirection)?.label || "Не обрано";
+  const selectedGroupLabel = groupOptions.find(option => option.value === selectedGroup)?.label || "Не обрано";
 
   return (
     <HomeLayout>
-      {/* Головний контейнер - ПРОСТО блок з відступами */}
-      <div className="bg-white p-4 md:p-6 rounded-lg shadow-lg w-full min-w-0">
+      <div className="flex-1 flex flex-col bg-white p-4 md:p-6 rounded-lg shadow-lg border border-gray-100">
+        <nav className="text-sm text-blue-700/70 mb-4" aria-label="Breadcrumb">
+          <ol className="list-none p-0 inline-flex gap-2 flex-wrap">
+            <li className="flex items-center gap-2">
+              <a href="/home" className="text-blue-600 hover:underline">Головна</a>
+              <span>/</span>
+            </li>
+            <li className="text-blue-900 font-semibold">Перегляд наявності за групами</li>
+          </ol>
+        </nav>
 
-        {/* --- Заголовок, Хлібні крихти, Фільтри (без змін) --- */}
-        <nav className="text-sm text-gray-500 mb-4" aria-label="Breadcrumb"> {/* ... */}</nav>
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">Просмотр наличия по группам</h2>
-        <div className="max-w-lg"> {/* ... (форма з Select'ами) ... */}
-         <form>
-             <div className="mb-4">
-                <label htmlFor="direction" className="block text-sm font-medium text-gray-700 mb-1">Товарное направление*</label>
-                <Select id="direction" styles={customSelectStyles} options={formatOptions(directions)} isClearable isSearchable placeholder="-- Оберіть направлення --" onChange={option => setSelectedDirection(option ? option.value : null)} value={formatOptions(directions).find(o => o.value === selectedDirection)} />
-             </div>
-             <div className="mb-4">
-                <label htmlFor="group" className="block text-sm font-medium text-gray-700 mb-1">Группы товара*</label>
-                <Select id="group" styles={customSelectStyles} options={formatOptions(groups)} isClearable isSearchable placeholder={isLoadingGroups ? "Завантаження груп..." : (selectedDirection ? "-- Оберіть групу --" : "-- Спочатку оберіть направлення --")} onChange={option => setSelectedGroup(option ? option.value : null)} value={formatOptions(groups).find(o => o.value === selectedGroup)} isDisabled={!selectedDirection || isLoadingGroups} isLoading={isLoadingGroups} />
-             </div>
-          </form>
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Перегляд за групами</h2>
+          {products.length > 0 && (
+            <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-1 text-xs font-semibold text-blue-700 shadow-inner">
+              <span className="h-2 w-2 rounded-full bg-blue-500"></span>
+              {products.length} позицій
+            </span>
+          )}
         </div>
 
-        {/* --- Секція результатів --- */}
-        {isLoadingProducts ? (
-          <p className="mt-8 text-center text-gray-600">Завантаження товарів...</p>
-        ) : products.length > 0 ? (
-          <div className="mt-8 min-w-0">
+        {errorMessage && (
+          <div className="mb-5 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {errorMessage}
+          </div>
+        )}
 
-            <div className="flex gap-2 mb-4">
-              <button onClick={handleExcelExport} className="bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 flex items-center gap-2">
-                <FaFileExcel /> Excel
-              </button>
-              <button onClick={handlePdfExport} className="bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 flex items-center gap-2">
-                <FaFilePdf /> PDF
-              </button>
+        <section className="grid gap-6 lg:grid-cols-[3fr_2fr] mb-8">
+          <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/60 via-white to-blue-50 p-5 shadow-inner">
+            <div className="mb-5 flex items-center gap-3 text-blue-900">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                <FaClipboardList />
+              </span>
+              <div>
+                <p className="text-base font-semibold">Крок 1 — оберіть фільтри</p>
+                <p className="text-xs text-blue-700/80">Вкажіть напрям та групу — ми покажемо відповідні залишки.</p>
+              </div>
             </div>
 
-            {/* --- Таблиця для ПК --- */}
-            {/* 1. overflow-auto ТУТ */}
-            <div
-              className="hidden md:block overflow-x-auto overflow-y-auto border rounded w-full max-w-full min-w-0"
-              style={{ maxHeight: '28vh', minHeight: '16vh' }}
-            >
-              {/* `table-fixed` все ще потрібен для стабільності */}
-              {/* ЗБІЛЬШИВ `min-w-[1500px]` - підбери це значення! */}
-              <table className="text-sm align-middle table-fixed min-w-[1800px]">
-                 <thead className="bg-gray-50">
-                    <tr>
-                      {/* Оновлені ширини перших колонок */}
-                      <th className="sticky top-0 p-2 border-b text-left font-semibold text-gray-600 bg-gray-50 z-10 w-16">№</th>
-                      <th
-                        className="sticky top-0 p-2 border-b text-left font-semibold text-gray-600 bg-gray-50 z-10 w-72"
-                        style={{ minWidth: '22rem' }}
-                      >
-                        Код товара
-                      </th>
-                      <th className="sticky top-0 p-2 border-b text-left font-semibold text-gray-600 bg-gray-50 z-10 w-[360px]">Наименование</th>
-                      <th className="sticky top-0 p-2 border-b text-right font-semibold text-gray-600 bg-gray-50 z-10 w-36">Кількість (Загальна)</th>
+            <form className="space-y-4">
+              <div>
+                <label htmlFor="direction" className="block text-sm font-medium text-gray-700 mb-2">Товарне направлення *</label>
+                <Select
+                  id="direction"
+                  styles={customSelectStyles}
+                  options={directionOptions}
+                  isClearable
+                  isSearchable
+                  placeholder={isLoadingDirections ? "Завантаження направлень..." : "-- Оберіть направлення --"}
+                  onChange={handleDirectionChange}
+                  value={directionOptions.find(option => option.value === selectedDirection) ?? null}
+                  isDisabled={isLoadingDirections}
+                  isLoading={isLoadingDirections}
+                />
+              </div>
 
-                      {/* Філіали - ширші колонки, але в межах екрану */}
+              <div>
+                <label htmlFor="group" className="block text-sm font-medium text-gray-700 mb-2">Група товарів *</label>
+                <Select
+                  id="group"
+                  styles={customSelectStyles}
+                  options={groupOptions}
+                  isClearable
+                  isSearchable
+                  placeholder={isLoadingGroups ? "Завантаження груп..." : (selectedDirection ? "-- Оберіть групу --" : "-- Спочатку оберіть направлення --")}
+                  onChange={handleGroupChange}
+                  value={groupOptions.find(option => option.value === selectedGroup) ?? null}
+                  isDisabled={!selectedDirection || isLoadingGroups}
+                  isLoading={isLoadingGroups}
+                />
+              </div>
+            </form>
+          </div>
+
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5 shadow-inner flex flex-col gap-4 space-y-2">
+            <div className="flex items-center gap-3 text-emerald-900">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                <FaProjectDiagram />
+              </span>
+              <div>
+                <p className="text-base font-semibold">Крок 2 — перевірте вибір</p>
+                <p className="text-xs text-emerald-700/80">Миттєво отримайте деталі вибраних напрямів та груп.</p>
+              </div>
+            </div>
+            
+            <div className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-inner flex items-center gap-3">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                <FaWarehouse />
+              </span>
+              <div className="flex-1">
+                <p className="text-xs uppercase tracking-wide text-gray-400">Направлення</p>
+                <p className="text-sm font-semibold text-gray-900 truncate">{directionOptions.find(opt => opt.value === selectedDirection)?.label || "Не обрано"}</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-inner flex items-center gap-3">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                <FaLayerGroup />
+              </span>
+              <div className="flex-1">
+                <p className="text-xs uppercase tracking-wide text-gray-400">Група</p>
+                <p className="text-sm font-semibold text-gray-900 truncate">{groupOptions.find(opt => opt.value === selectedGroup)?.label || "Не обрано"}</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="flex-1 min-h-0 bg-white/90 rounded-3xl border border-gray-100 shadow-inner p-5">
+          {isLoadingTable ? (
+            <p className="text-center text-gray-500">Завантаження товарів...</p>
+          ) : products.length > 0 ? (
+            <>
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                <div className="flex gap-2">
+                  <button onClick={handleExcelExport} className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 shadow hover:bg-emerald-100">
+                    <FaFileExcel /> Excel
+                  </button>
+                  <button onClick={handlePdfExport} className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 shadow hover:bg-red-100">
+                    <FaFilePdf /> PDF
+                  </button>
+                </div>
+                <span className="text-xs text-gray-400">Показано філіалів: {branches.length}</span>
+              </div>
+
+              <div className="hidden md:block overflow-x-auto overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow">
+                <table className="w-full text-sm align-middle min-w-[1400px]">
+                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                    <tr>
+                      <th className="sticky top-0 border-b border-r border-gray-100 p-3 text-left text-[11px] font-semibold tracking-[0.08em] text-gray-600 uppercase">№</th>
+                      <th className="sticky top-0 border-b border-r border-gray-100 p-3 text-left text-[11px] font-semibold tracking-[0.08em] text-gray-600 uppercase min-w-[10rem]">Код</th>
+                      <th className="sticky top-0 border-b border-r border-gray-100 p-3 text-left text-[11px] font-semibold tracking-[0.08em] text-gray-600 uppercase min-w-[18rem]">Назва</th>
+                      <th className="sticky top-0 border-b border-r border-gray-100 p-3 text-right text-[11px] font-semibold tracking-[0.08em] text-gray-600 uppercase">Загалом</th>
                       {branches.map(branch => (
-                        <th key={branch.id} className="sticky top-0 p-2 border-b text-right font-semibold text-gray-600 bg-gray-50 z-10 whitespace-nowrap w-28">
-                          {branch.name}
+                        <th key={branch.id} className="sticky top-0 border-b border-r border-gray-100 p-3 text-right text-[11px] font-semibold tracking-[0.05em] text-gray-600 uppercase whitespace-nowrap last:border-r-0">
+                          <span className="block text-[10px] text-gray-400">Філіал</span>
+                          {branch.displayName || branch.name || branch.code || "—"}
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {products.map((product, index) => {
-                      const total = Object.values(product.stock || {}).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
+                      const quantityMap = new Map((product.branches ?? []).map(item => [item.branchId, item.quantity]));
                       return (
-                        <tr key={product.id} className="hover:bg-gray-50">
-                          <td className="p-2 border-b text-gray-700">{index + 1}</td>
-                          <td
-                            className="p-2 border-b text-gray-700 w-72"
-                            style={{ minWidth: '22rem' }}
-                          >
-                            {product.code}
+                        <tr key={product.id} className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50/80"} border-b border-gray-100 transition hover:bg-blue-50/60`}>
+                          <td className="border-r border-gray-100 p-3 text-gray-600 font-semibold">{index + 1}</td>
+                          <td className="border-r border-gray-100 p-3 font-semibold text-gray-900 tracking-wide min-w-[10rem]">{product.code}</td>
+                          <td className="border-r border-gray-100 p-3 text-gray-700 font-medium min-w-[18rem]">{product.name}</td>
+                          <td className="border-r border-gray-100 p-3 text-right text-gray-900 font-bold">
+                            <span className="inline-flex items-center justify-end gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                              <span className="h-2 w-2 rounded-full bg-blue-300"></span>
+                              {formatQuantity(product.totalQuantity)}
+                            </span>
                           </td>
-                          <td className="p-2 border-b text-gray-700 truncate">{product.name}</td> {/* truncate залишається */}
-                          <td className="p-2 border-b text-gray-700 text-right font-bold">{total.toFixed(2)}</td>
-                          {branches.map(branch => (
-                            <td key={branch.id} className="p-2 border-b text-gray-700 text-right">
-                              {(product.stock && product.stock.hasOwnProperty(branch.id)) ? parseFloat(product.stock[branch.id]).toFixed(2) : '0.00'}
-                            </td>
-                          ))}
+                          {branches.map(branch => {
+                            const branchQty = quantityMap.get(branch.id) ?? 0;
+                            const isZero = !branchQty;
+                            return (
+                              <td key={branch.id} className="p-3 text-right border-r border-gray-100 last:border-r-0">
+                                <span className={`inline-flex items-center justify-end gap-2 rounded-full border px-2 py-0.5 text-xs font-semibold ${isZero ? "border-gray-100 text-gray-400" : "border-blue-100 text-blue-800"}`}>
+                                  {formatQuantity(branchQty)}
+                                </span>
+                              </td>
+                            );
+                          })}
                         </tr>
                       );
                     })}
                   </tbody>
-              </table>
-            </div>
+                </table>
+              </div>
 
-            {/* --- Картки для Мобільних (без змін) --- */}
-            <div className="md:hidden space-y-4 overflow-y-auto" style={{ maxHeight: '60vh' }}>
-              {products.map((product, index) => {
-                 const total = Object.values(product.stock || {}).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
+              <div className="md:hidden space-y-4 overflow-y-auto">
+                {products.map((product, index) => {
+                  const quantityMap = new Map((product.branches ?? []).map(item => [item.branchId, item.quantity]));
                   return (
-                    <div key={product.id} className="bg-gray-50 p-4 rounded-lg shadow border">
-                      <div className="flex justify-between">
-                        <h3 className="font-bold text-base text-gray-900 flex-1">{product.name}</h3>
-                        <span className="text-sm text-gray-600 ml-2">№ {index + 1}</span>
+                    <div key={product.id} className="rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-gray-50 p-4 shadow space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="text-[11px] uppercase tracking-[0.2em] text-gray-500">Товар</span>
+                          <h3 className="font-semibold text-gray-900">{product.name}</h3>
+                        </div>
+                        <span className="inline-flex h-8 min-w-[2rem] items-center justify-center rounded-xl bg-gray-100 text-gray-700 text-xs font-semibold">№ {index + 1}</span>
                       </div>
-                      <p className="text-sm text-gray-500 mb-3">Код: {product.code}</p>
+                      <p className="text-sm text-gray-500">Код: <span className="font-semibold text-gray-900">{product.code}</span></p>
                       <div>
-                        <span className="font-semibold text-gray-700 block">Загальна кількість:</span>
-                        <span className="font-bold text-lg text-blue-600">{total.toFixed(2)}</span>
+                        <span className="text-xs uppercase tracking-wide text-gray-400">Загальна кількість</span>
+                        <p className="text-2xl font-bold text-gray-900">{formatQuantity(product.totalQuantity)}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {branches.map(branch => {
+                          const branchQty = quantityMap.get(branch.id) ?? 0;
+                          return (
+                            <div key={branch.id} className="rounded-xl border border-gray-100 bg-white px-3 py-2">
+                              <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400">{branch.displayName || branch.name || branch.code || "—"}</p>
+                              <p className={`text-base font-semibold ${branchQty ? "text-gray-900" : "text-gray-400"}`}>{formatQuantity(branchQty)}</p>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
-              })}
-            </div>
-
-          </div>
-        ) : (
-          selectedGroup && !isLoadingProducts && (
-            <p className="mt-8 text-center text-gray-600">Для цієї групи товари не знайдені.</p>
-          )
-        )}
+                })}
+              </div>
+            </>
+          ) : (
+            selectedGroup && !isLoadingTable ? (
+              <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50/80 px-6 py-10 text-center text-sm text-gray-500">
+                Для цієї групи товари не знайдені.
+              </div>
+            ) : (
+              <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50/80 px-6 py-10 text-center text-sm text-gray-500">
+                Оберіть фільтри, щоб побачити результати.
+              </div>
+            )
+          )}
+        </section>
       </div>
     </HomeLayout>
   );

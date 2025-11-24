@@ -1,17 +1,19 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { FaTrashAlt } from "react-icons/fa";
+import { FaTrashAlt, FaShoppingCart } from "react-icons/fa";
 import HomeLayout from "../components/HomeLayout";
 import { useCart } from "../context/CartContext.jsx";
+import { useAuth } from "../context/AuthContext";
+import { createOrder } from "../api/orderManagementApi";
 
 const paymentOptions = [
-  { value: "Наличный", label: "Наличный" },
-  { value: "Безналичный", label: "Безналичный" },
+  { value: "Готівковий", label: "Готівковий" },
+  { value: "Безготівковий", label: "Безготівковий" },
 ];
 
 const orderTypeOptions = [
-  { value: "Текущий", label: "Текущий" },
-  { value: "Отложенный", label: "Отложенный" },
+  { value: "Поточне", label: "Поточне" },
+  { value: "Відкладене", label: "Відкладене" },
 ];
 
 export default function Cart() {
@@ -31,14 +33,16 @@ export default function Cart() {
     setOrderType,
     comment,
     setComment,
-    submitOrder,
   } = useCart();
 
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   const hasItems = items.length > 0;
+
+  // No customer account needed - orders are linked directly to users
 
   const totals = useMemo(
     () => ({
@@ -54,26 +58,47 @@ export default function Cart() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!hasItems) {
+      alert("Кошик порожній");
       return;
     }
+
     setIsSubmitting(true);
     try {
-      const order = submitOrder();
-      if (order) {
-        navigate("/order-history", {
-          state: {
-            newOrderId: order.id,
-            fromPath: location.pathname,
-          },
-        });
-      }
+      console.log("Creating order with:", {
+        orderType,
+        paymentMethod,
+        comment
+      });
+
+      const order = await createOrder({
+        orderType,
+        paymentMethod,
+        comment: comment || null,
+      });
+
+      console.log("Order created:", order);
+
+      // Clear cart after successful order
+      clearCart();
+      setComment("");
+
+      // Navigate to order history with success message
+      navigate("/order-history", {
+        state: {
+          newOrderId: order.orderNumber,
+          fromPath: location.pathname,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to create order:", error);
+      alert(`Не вдалося створити замовлення: ${error.response?.data?.error || error.message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleClear = () => {
-    if (hasItems && window.confirm("Очистити корзину?")) {
+    if (hasItems && window.confirm("Очистити кошик?")) {
       clearCart();
     }
   };
@@ -88,73 +113,84 @@ export default function Cart() {
             </li>
             <li className="flex items-center mx-2">/</li>
             <li className="flex items-center">
-              <span className="text-gray-700">Корзина</span>
+              <span className="text-gray-700">Кошик</span>
             </li>
           </ol>
         </nav>
 
-        <header className="flex items-center justify-between flex-wrap gap-3 mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">Корзина</h2>
-            <p className="text-sm text-gray-500">Перевірте та відредагуйте вибрані товари перед оформленням.</p>
-          </div>
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            Кошик
+          </h2>
+          {hasItems && (
+            <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1 text-xs font-semibold text-blue-700">
+              <span className="h-2 w-2 rounded-full bg-blue-500" />
+              {items.length} позицій
+            </span>
+          )}
           <button
             type="button"
             onClick={handleClear}
-            className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-4 py-2 rounded-md disabled:opacity-50"
+            className="ml-auto inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 shadow hover:bg-red-100 disabled:opacity-50"
             disabled={!hasItems}
           >
-            Очистити корзину
+            <FaTrashAlt /> Очистити
           </button>
-        </header>
+        </div>
+        <p className="text-sm text-gray-500 mb-6">Перевірте та відредагуйте вибрані товари перед оформленням. Всі показники автоматично перераховуються.</p>
 
-        <form onSubmit={handleSubmit} className="grid lg:grid-cols-[2fr_1fr] gap-6 flex-1">
-          <section className="flex flex-col gap-6">
-            <div className="border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3 border-b">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
+          {/* Table Section - Full Width */}
+          <div className="rounded-2xl border border-gray-100 bg-white shadow overflow-hidden">
+              <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 border-b border-gray-100">
                 <h3 className="text-lg font-semibold text-gray-800">Вміст замовлення</h3>
               </div>
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 {hasItems ? (
-                  <table className="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead className="bg-gray-50">
-                      <tr className="text-left text-gray-600 font-semibold">
-                        <th className="px-4 py-3">ID</th>
-                        <th className="px-4 py-3">Код товара</th>
-                        <th className="px-4 py-3">Найменування</th>
-                        <th className="px-4 py-3 text-right">Ціна</th>
-                        <th className="px-4 py-3 text-right">Ціна зі знижкою</th>
-                        <th className="px-4 py-3 text-right">Кількість</th>
-                        <th className="px-4 py-3 text-right">Вага, кг</th>
-                        <th className="px-4 py-3 text-right">Обʼєм, м³</th>
-                        <th className="px-4 py-3 text-center">Дії</th>
+                  <table className="w-full text-sm">
+                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                      <tr className="text-left text-[11px] font-semibold tracking-[0.08em] text-gray-600 uppercase">
+                        <th className="px-4 py-3 border-b border-r border-gray-100">Код</th>
+                        <th className="px-4 py-3 border-b border-r border-gray-100">Найменування</th>
+                        <th className="px-4 py-3 border-b border-r border-gray-100 text-right">Ціна</th>
+                        <th className="px-4 py-3 border-b border-r border-gray-100 text-right">Зі знижкою</th>
+                        <th className="px-4 py-3 border-b border-r border-gray-100 text-right">Кількість</th>
+                        <th className="px-4 py-3 border-b border-r border-gray-100 text-right">Вага</th>
+                        <th className="px-4 py-3 border-b border-r border-gray-100 text-right">Обʼєм</th>
+                        <th className="px-4 py-3 border-b border-gray-100 text-center">Дії</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody>
                       {items.map((item) => (
-                        <tr key={item.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-gray-700">{item.id}</td>
-                          <td className="px-4 py-3 text-gray-700">{item.code}</td>
-                          <td className="px-4 py-3 text-gray-900 font-medium">{item.name}</td>
-                          <td className="px-4 py-3 text-right text-gray-700">{item.price.toFixed(2)}</td>
-                          <td className="px-4 py-3 text-right text-gray-700">{item.priceWithDiscount.toFixed(2)}</td>
-                          <td className="px-4 py-3 text-right">
+                        <tr key={item.id} className="border-b border-gray-100 transition hover:bg-blue-50/60">
+                          <td className="px-4 py-3 border-r border-gray-100 text-gray-700">{item.productCode}</td>
+                          <td className="px-4 py-3 border-r border-gray-100 text-gray-900 font-medium min-w-[16rem]">{item.productName}</td>
+                          <td className="px-4 py-3 border-r border-gray-100 text-right text-gray-700">{item.price.toFixed(2)}</td>
+                          <td className="px-4 py-3 border-r border-gray-100 text-right">
+                            <span className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                              <span className="h-2 w-2 rounded-full bg-blue-300" />
+                              {item.priceWithDiscount.toFixed(2)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 border-r border-gray-100 text-right">
                             <input
                               type="number"
                               min="0"
-                              step="0.01"
+                              step="1"
+                              pattern="\\d*"
+                              inputMode="numeric"
                               value={item.quantity}
                               onChange={(event) => updateItemQuantity(item.id, event.target.value)}
-                              className="w-24 border rounded-md px-2 py-1 text-right"
+                              className="w-24 rounded-xl border border-gray-200 bg-white px-3 py-1 text-right text-sm"
                             />
                           </td>
-                          <td className="px-4 py-3 text-right text-gray-700">{(item.weight * item.quantity).toFixed(3)}</td>
-                          <td className="px-4 py-3 text-right text-gray-700">{(item.volume * item.quantity).toFixed(3)}</td>
+                          <td className="px-4 py-3 border-r border-gray-100 text-right text-gray-700">{(item.weight * item.quantity).toFixed(3)}</td>
+                          <td className="px-4 py-3 border-r border-gray-100 text-right text-gray-700">{(item.volume * item.quantity).toFixed(3)}</td>
                           <td className="px-4 py-3 text-center">
                             <button
                               type="button"
                               onClick={() => removeItem(item.id)}
-                              className="inline-flex items-center gap-1 text-red-600 hover:text-red-700"
+                              className="inline-flex items-center gap-1 rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-100"
                             >
                               <FaTrashAlt />
                               <span className="hidden sm:inline">Видалити</span>
@@ -165,22 +201,84 @@ export default function Cart() {
                     </tbody>
                   </table>
                 ) : (
-                  <p className="px-4 py-6 text-center text-gray-500">Додайте товари з каталогу, щоб вони зʼявились у корзині.</p>
+                  <div className="px-4 py-10 text-center">
+                    <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50/80 px-6 py-8 text-gray-500">
+                      Додайте товари з каталогу, щоб вони зʼявились у кошику.
+                    </div>
+                  </div>
                 )}
               </div>
-            </div>
+          </div>
 
-            <div className="border border-gray-200 rounded-lg shadow-sm">
-              <div className="bg-gray-50 px-4 py-3 border-b">
-                <h3 className="text-lg font-semibold text-gray-800">Параметри замовлення</h3>
+          {/* Mobile Cards - Full Width */}
+          {hasItems && (
+            <div className="md:hidden space-y-4">
+              {items.map((item) => (
+                  <div key={`card-${item.id}`} className="rounded-2xl border border-gray-100 bg-white shadow p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-gray-400">Код</p>
+                        <p className="text-sm font-semibold text-gray-900">{item.productCode}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(item.id)}
+                        className="inline-flex items-center gap-1 rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-600"
+                      >
+                        <FaTrashAlt /> Видалити
+                      </button>
+                    </div>
+                    <p className="text-gray-900 font-medium">{item.productName}</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
+                      <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wide">Ціна</p>
+                        <p className="text-sm font-semibold text-gray-900">{item.price.toFixed(2)}</p>
+                      </div>
+                      <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wide text-blue-600">Зі знижкою</p>
+                        <p className="text-sm font-semibold text-blue-700">{item.priceWithDiscount.toFixed(2)}</p>
+                      </div>
+                      <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wide">Вага</p>
+                        <p className="text-sm font-semibold text-gray-900">{(item.weight * item.quantity).toFixed(3)}</p>
+                      </div>
+                      <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wide">Обʼєм</p>
+                        <p className="text-sm font-semibold text-gray-900">{(item.volume * item.quantity).toFixed(3)}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs uppercase tracking-wide text-gray-500">Кількість</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        pattern="\\d*"
+                        inputMode="numeric"
+                        value={item.quantity}
+                        onChange={(event) => updateItemQuantity(item.id, event.target.value)}
+                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-right text-sm"
+                      />
+                    </div>
+                  </div>
+              ))}
+            </div>
+          )}
+
+          {/* Parameters and Results Side by Side */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Parameters Block */}
+            <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-50 shadow-inner">
+              <div className="px-4 py-3 border-b border-blue-100">
+                <h3 className="text-lg font-semibold text-blue-900">Параметри замовлення</h3>
               </div>
               <div className="p-4 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Форма розрахунку</label>
+                  <label className="block text-xs uppercase tracking-wide text-gray-500 mb-2">Форма розрахунку</label>
                   <select
                     value={paymentMethod}
                     onChange={(event) => setPaymentMethod(event.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    className="w-full rounded-xl border border-blue-100 bg-white px-3 py-2 text-sm text-gray-900 shadow focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                   >
                     {paymentOptions.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
@@ -189,11 +287,11 @@ export default function Cart() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Тип замовлення</label>
+                  <label className="block text-xs uppercase tracking-wide text-gray-500 mb-2">Тип замовлення</label>
                   <select
                     value={orderType}
                     onChange={(event) => setOrderType(event.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    className="w-full rounded-xl border border-blue-100 bg-white px-3 py-2 text-sm text-gray-900 shadow focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                   >
                     {orderTypeOptions.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
@@ -202,35 +300,35 @@ export default function Cart() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Коментар</label>
+                  <label className="block text-xs uppercase tracking-wide text-gray-500 mb-2">Коментар</label>
                   <textarea
                     value={comment}
                     onChange={(event) => setComment(event.target.value)}
                     rows={4}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    className="w-full rounded-xl border border-blue-100 bg-white px-3 py-2 text-sm text-gray-900 shadow focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                     placeholder="Додаткові побажання щодо замовлення"
                   />
                 </div>
               </div>
             </div>
-          </section>
 
-          <aside className="border border-gray-200 rounded-lg shadow-sm h-full flex flex-col">
-            <div className="bg-gray-50 px-4 py-3 border-b">
-              <h3 className="text-lg font-semibold text-gray-800">Підсумки</h3>
+            {/* Results Block */}
+            <aside className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-50 shadow-inner flex flex-col min-w-0">
+            <div className="px-4 py-3 border-b border-emerald-100">
+              <h3 className="text-lg font-semibold text-emerald-900">Підсумки</h3>
             </div>
             <div className="p-4 space-y-3 text-sm text-gray-700 flex-1">
-              <div className="flex justify-between"><span>Загальна кількість, од.:</span><span>{totals.quantity}</span></div>
-              <div className="flex justify-between"><span>Сума без знижки, грн:</span><span>{totals.originalPrice}</span></div>
-              <div className="flex justify-between font-semibold"><span>Ваша вартість, грн:</span><span>{totals.discountedPrice}</span></div>
-              <div className="flex justify-between"><span>Загальна вага, кг:</span><span>{totals.weight}</span></div>
-              <div className="flex justify-between"><span>Загальний обʼєм, м³:</span><span>{totals.volume}</span></div>
-              {!hasItems && <p className="pt-4 text-gray-500 text-sm">Корзина порожня.</p>}
+              <div className="flex items-center justify-between rounded-xl border border-emerald-100 bg-white/80 px-3 py-2"><span>Загальна кількість, од.:</span><span className="font-semibold text-gray-900">{totals.quantity}</span></div>
+              <div className="flex items-center justify-between rounded-xl border border-emerald-100 bg-white/80 px-3 py-2"><span>Загальна вага, кг:</span><span>{totals.weight}</span></div>
+              <div className="flex items-center justify-between rounded-xl border border-emerald-100 bg-white/80 px-3 py-2"><span>Загальний обʼєм, м³:</span><span>{totals.volume}</span></div>
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-white/80 px-3 py-2"><span>Сума без знижки, грн:</span><span className="font-semibold text-gray-900">{totals.originalPrice}</span></div>
+              <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 font-semibold text-emerald-900"><span>Ваша вартість, грн:</span><span>{totals.discountedPrice}</span></div>
+              {!hasItems && <p className="pt-4 text-gray-500 text-sm">Кошик порожній.</p>}
             </div>
-            <div className="px-4 py-5 border-t flex flex-col gap-3 bg-gray-50">
+            <div className="px-4 py-5 border-t border-emerald-100 flex flex-col gap-3 bg-white/70">
               <button
                 type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-md disabled:bg-gray-400"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl shadow disabled:bg-gray-400"
                 disabled={!hasItems || isSubmitting}
               >
                 {isSubmitting ? "Відправлення..." : "Замовити"}
@@ -238,12 +336,13 @@ export default function Cart() {
               <button
                 type="button"
                 onClick={() => navigate(-1)}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 rounded-md"
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 rounded-xl"
               >
                 Повернутись назад
               </button>
             </div>
           </aside>
+          </div>
         </form>
       </div>
     </HomeLayout>

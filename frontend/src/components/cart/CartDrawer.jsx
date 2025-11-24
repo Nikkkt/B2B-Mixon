@@ -59,14 +59,14 @@ export default function CartDrawer() {
               <article key={item.id} className="border border-gray-200 rounded-md p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-sm text-gray-500">Код: {item.code}</p>
-                    <h3 className="text-base font-semibold text-gray-900">{item.name}</h3>
+                    <p className="text-sm text-gray-500">Код: {item.productCode}</p>
+                    <h3 className="text-base font-semibold text-gray-900">{item.productName}</h3>
                   </div>
                   <button
                     type="button"
                     onClick={() => removeItem(item.id)}
                     className="text-red-600 hover:text-red-700"
-                    aria-label={`Видалити ${item.name}`}
+                    aria-label={`Видалити ${item.productName}`}
                   >
                     <FaTrashAlt />
                   </button>
@@ -116,10 +116,10 @@ export default function CartDrawer() {
           {hasItems && (
             <div className="space-y-2 text-sm text-gray-700">
               <div className="flex justify-between"><span>Загальна кількість, од.:</span><span>{totalQuantity.toFixed(2)}</span></div>
-              <div className="flex justify-between"><span>Сума без знижки, грн:</span><span>{totalOriginalPrice.toFixed(2)}</span></div>
-              <div className="flex justify-between font-semibold"><span>Ваша вартість, грн:</span><span>{totalDiscountedPrice.toFixed(2)}</span></div>
               <div className="flex justify-between"><span>Загальна вага, кг:</span><span>{totalWeight.toFixed(3)}</span></div>
               <div className="flex justify-between"><span>Загальний обʼєм, м³:</span><span>{totalVolume.toFixed(3)}</span></div>
+              <div className="flex justify-between"><span>Сума без знижки, грн:</span><span>{totalOriginalPrice.toFixed(2)}</span></div>
+              <div className="flex justify-between font-semibold"><span>Ваша вартість, грн:</span><span>{totalDiscountedPrice.toFixed(2)}</span></div>
             </div>
           )}
 
