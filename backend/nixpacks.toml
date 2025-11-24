@@ -1,0 +1,7 @@
+providers = ["dotnet"]
+
+[phases.build]
+cmd = "dotnet publish -c Release -o out"
+
+[start]
+cmd = "dotnet backend.dll"
