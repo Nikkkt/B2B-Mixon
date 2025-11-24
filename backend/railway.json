@@ -4,7 +4,7 @@
     "rootDirectory": "backend",
     "buildCommand": "dotnet publish -c Release -o out",
     "env": {
-      "NIXPACKS_DOTNET_VERSION": "9.0.308"
+      "NIXPACKS_POST_INSTALL": "curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh && bash /tmp/dotnet-install.sh --version 9.0.308 --install-dir /opt/dotnet && ln -sf /opt/dotnet/dotnet /usr/local/bin/dotnet"
     }
   },
   "deploy": {
