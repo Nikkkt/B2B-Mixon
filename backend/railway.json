@@ -1,9 +1,0 @@
-{
-  "build": {
-    "builder": "NIXPACKS",
-    "rootDirectory": "backend"
-  },
-  "deploy": {
-    "startCommand": "dotnet out/backend.dll"
-  }
-}
