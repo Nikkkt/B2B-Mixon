@@ -42,7 +42,7 @@ builder.Services.AddCors(options =>
     {
         var origins = corsOrigins?.Length > 0
             ? corsOrigins
-            : new[] { "http://localhost:5173" };
+            : new[] { "https://b2-b-mixon.vercel.app/" };
 
         policy.WithOrigins(origins)
             .AllowAnyHeader()
