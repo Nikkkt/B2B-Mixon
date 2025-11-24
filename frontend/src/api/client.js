@@ -2,7 +2,7 @@ import axios from "axios";
 import { AUTH_STORAGE_KEY } from "../context/AuthContext.jsx";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:5249/api",
+  baseURL: import.meta.env.VITE_API_URL ?? "https://b2b-mixon.onrender.com",
   headers: {
     "Content-Type": "application/json"
   }
