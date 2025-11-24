@@ -2,7 +2,10 @@
   "build": {
     "builder": "NIXPACKS",
     "rootDirectory": "backend",
-    "buildCommand": "dotnet publish -c Release -o out"
+    "buildCommand": "dotnet publish -c Release -o out",
+    "env": {
+      "NIXPACKS_DOTNET_VERSION": "9.0.308"
+    }
   },
   "deploy": {
     "startCommand": "dotnet out/backend.dll"
