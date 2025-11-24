@@ -1,0 +1,10 @@
+{
+  "build": {
+    "builder": "NIXPACKS",
+    "rootDirectory": "backend",
+    "buildCommand": "dotnet publish -c Release -o out"
+  },
+  "deploy": {
+    "startCommand": "dotnet out/backend.dll"
+  }
+}
