@@ -1,22 +1,87 @@
 using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Net.Mail;
 using System.Net.Sockets;
 using backend.Exceptions;
 using backend.Services.Interfaces;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace backend.Services.Implementations;
 
 public class EmailService : IEmailService
 {
+    private readonly HttpClient _httpClient;
     private readonly ILogger<EmailService> _logger;
+    private readonly string? _sendGridApiKey;
+    private readonly string? _fromEmail;
+    private readonly string _fromName;
 
-    public EmailService(ILogger<EmailService> logger)
+    public EmailService(HttpClient httpClient, ILogger<EmailService> logger)
     {
+        _httpClient = httpClient;
         _logger = logger;
+        _sendGridApiKey = Environment.GetEnvironmentVariable("SENDGRID_API_KEY");
+        _fromEmail = Environment.GetEnvironmentVariable("SENDGRID_FROM_EMAIL")
+            ?? Environment.GetEnvironmentVariable("Email__FromEmail")
+            ?? Environment.GetEnvironmentVariable("EMAIL_USER");
+        _fromName = Environment.GetEnvironmentVariable("SENDGRID_FROM_NAME")
+            ?? Environment.GetEnvironmentVariable("Email__FromName")
+            ?? "Mixon B2B";
     }
 
     public async Task SendAsync(string to, string subject, string body)
+    {
+        if (!string.IsNullOrWhiteSpace(_sendGridApiKey))
+        {
+            await SendViaSendGridAsync(to, subject, body);
+            return;
+        }
+
+        await SendViaSmtpAsync(to, subject, body);
+    }
+
+    private async Task SendViaSendGridAsync(string to, string subject, string body)
+    {
+        if (string.IsNullOrWhiteSpace(_fromEmail))
+        {
+            _logger.LogError("SendGrid configuration is incomplete: FromEmail missing.");
+            throw new AuthException("Email service is not configured.", StatusCodes.Status503ServiceUnavailable);
+        }
+
+        var payload = new
+        {
+            personalizations = new[]
+            {
+                new { to = new[] { new { email = to } } }
+            },
+            from = new { email = _fromEmail, name = _fromName },
+            subject,
+            content = new[]
+            {
+                new { type = "text/plain", value = body }
+            }
+        };
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "mail/send")
+        {
+            Content = JsonContent.Create(payload)
+        };
+
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _sendGridApiKey);
+
+        var response = await _httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            var details = await response.Content.ReadAsStringAsync();
+            _logger.LogError("SendGrid email failed with {StatusCode}: {Body}", response.StatusCode, details);
+            throw new AuthException("Unable to send email at this time. Please try again later.", StatusCodes.Status503ServiceUnavailable);
+        }
+    }
+
+    private async Task SendViaSmtpAsync(string to, string subject, string body)
     {
         var host = Environment.GetEnvironmentVariable("EMAIL_HOST");
         var portValue = Environment.GetEnvironmentVariable("EMAIL_PORT");
@@ -25,7 +90,7 @@ public class EmailService : IEmailService
 
         if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(portValue) || string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
         {
-            _logger.LogError("Email configuration is incomplete. Host: {Host}, Port: {Port}, User: {User}", host, portValue, username);
+            _logger.LogError("SMTP configuration is incomplete. Host: {Host}, Port: {Port}, User: {User}", host, portValue, username);
             throw new AuthException("Email service is not configured.", StatusCodes.Status503ServiceUnavailable);
         }
 
