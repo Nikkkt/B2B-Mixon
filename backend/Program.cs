@@ -109,6 +109,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseRouting();
 app.UseCors("FrontendPolicy");
 
 app.UseAuthentication();
