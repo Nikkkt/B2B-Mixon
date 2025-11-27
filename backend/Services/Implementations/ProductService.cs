@@ -40,6 +40,13 @@ public class ProductService : IProductService
         ColumnGroupSerial
     };
 
+    private static readonly CultureInfo[] SupportedNumberCultures =
+    {
+        new("uk-UA"),
+        new("ru-RU"),
+        CultureInfo.InvariantCulture
+    };
+
     private readonly AppDbContext _context;
     private readonly ILogger<ProductService> _logger;
 
@@ -122,19 +129,19 @@ public class ProductService : IProductService
                     }
 
                     // Parse numeric values with culture-specific formatting
-                    if (!decimal.TryParse(priceStr, NumberStyles.Any, new CultureInfo("ru-RU"), out decimal price))
+                    if (!TryParseDecimal(priceStr, out var price))
                     {
                         errorMessages.Add($"Строка {excelRowNumber}: Неверный формат цены: {priceStr}");
                         errors++;
                         continue;
                     }
 
-                    if (!decimal.TryParse(volumeStr, NumberStyles.Any, new CultureInfo("ru-RU"), out decimal volume))
+                    if (!TryParseDecimal(volumeStr, out var volume))
                     {
                         volume = 0; // Default value if not provided or invalid
                     }
 
-                    if (!decimal.TryParse(weightStr, NumberStyles.Any, new CultureInfo("ru-RU"), out decimal weight))
+                    if (!TryParseDecimal(weightStr, out var weight))
                     {
                         weight = 0; // Default value if not provided or invalid
                     }
@@ -256,6 +263,28 @@ public class ProductService : IProductService
         }
 
         return true;
+    }
+
+    private static bool TryParseDecimal(string? value, out decimal result)
+    {
+        result = 0m;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var sanitized = value.Trim().Replace(" ", string.Empty);
+
+        foreach (var culture in SupportedNumberCultures)
+        {
+            if (decimal.TryParse(sanitized, NumberStyles.Any, culture, out result))
+            {
+                return true;
+            }
+        }
+
+        var normalized = sanitized.Replace(',', '.');
+        return decimal.TryParse(normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out result);
     }
 }
 
