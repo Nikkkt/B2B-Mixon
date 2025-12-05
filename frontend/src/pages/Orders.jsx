@@ -87,7 +87,9 @@ const customSelectStyles = {
     ...provided,
     borderRadius: '1rem',
     padding: '0.35rem',
-    boxShadow: '0 15px 35px rgba(15,23,42,0.12)'
+    boxShadow: '0 15px 35px rgba(15,23,42,0.12)',
+    maxHeight: '16rem',
+    overflowY: 'auto'
   }),
   menuList: (provided) => ({
     ...provided,
