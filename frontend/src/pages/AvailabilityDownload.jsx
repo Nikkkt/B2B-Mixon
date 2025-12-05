@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FaFileExcel, FaInfoCircle, FaFileUpload, FaCheckCircle, FaTimesCircle, FaMapMarkerAlt } from "react-icons/fa";
 import HomeLayout from "../components/HomeLayout";
 import { uploadAvailabilityFile } from "../api/availabilityApi";
 import { useAuth } from "../context/AuthContext.jsx";
 import { pickReadableValue } from "../utils/displayName";
+import { fetchProfile } from "../api/profileApi";
 
 const formatDepartmentLabel = (value, fallback = "—") => pickReadableValue([value], fallback);
 
@@ -12,24 +13,71 @@ export default function AvailabilityDownload() {
   const [uploadState, setUploadState] = useState("idle"); // idle | uploading | success | error
   const [message, setMessage] = useState("");
   const [uploadResult, setUploadResult] = useState(null);
+  const [profileOverride, setProfileOverride] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState(null);
   const fileInputRef = useRef(null);
   const { user } = useAuth();
+  const resolvedUser = profileOverride ?? user;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      if (!user) {
+        if (isMounted) {
+          setProfileOverride(null);
+          setProfileError(null);
+          setProfileLoading(false);
+        }
+        return;
+      }
+
+      try {
+        setProfileLoading(true);
+        setProfileError(null);
+        const freshProfile = await fetchProfile();
+        if (isMounted) {
+          setProfileOverride(freshProfile);
+        }
+      } catch (error) {
+        if (isMounted) {
+          const apiError =
+            error?.response?.data?.error ??
+            error?.message ??
+            "Не вдалося оновити дані профілю.";
+          setProfileError(apiError);
+          setProfileOverride(null);
+        }
+      } finally {
+        if (isMounted) {
+          setProfileLoading(false);
+        }
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
 
   const departmentDisplay = useMemo(() => {
-    if (!user) {
+    if (!resolvedUser) {
       return { title: "Підрозділ не налаштовано", badge: "—" };
     }
 
-    if (user.departmentShopName) {
-      return { title: formatDepartmentLabel(user.departmentShopName), badge: "Магазин" };
+    if (resolvedUser.departmentShopName) {
+      return { title: formatDepartmentLabel(resolvedUser.departmentShopName), badge: "Магазин" };
     }
 
-    if (user.defaultBranchName) {
-      return { title: formatDepartmentLabel(user.defaultBranchName), badge: "Філія" };
+    if (resolvedUser.defaultBranchName) {
+      return { title: formatDepartmentLabel(resolvedUser.defaultBranchName), badge: "Філія" };
     }
 
     return { title: "Підрозділ не налаштовано", badge: "—" };
-  }, [user]);
+  }, [resolvedUser]);
 
   const handleFileChange = (event) => {
     const file = event.target.files?.[0] ?? null;
