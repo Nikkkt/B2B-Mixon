@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FaBarcode, FaFont, FaClock, FaCopy } from "react-icons/fa";
 import HomeLayout from "../components/HomeLayout";
 import {
@@ -7,12 +7,15 @@ import {
 } from "../api/availabilityApi";
 import { pickReadableValue } from "../utils/displayName";
 
-const formatQuantity = (value) => Number(value ?? 0).toLocaleString("uk-UA", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
-});
+const formatQuantity = (value) =>
+  Number(value ?? 0).toLocaleString("uk-UA", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 const getBranchLabel = (branch, fallback = "—") =>
   pickReadableValue([branch?.displayName, branch?.name, branch?.code], fallback);
+const DEFAULT_INFO_MESSAGE =
+  "Введіть код товару або скористайтеся пошуком за назвою, щоб побачити залишки.";
 
 export default function ViewAvailabilityByCode() {
   const [codeQuery, setCodeQuery] = useState("");
@@ -22,9 +25,7 @@ export default function ViewAvailabilityByCode() {
   const [isSearchingCode, setIsSearchingCode] = useState(false);
   const [isSearchingName, setIsSearchingName] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [infoMessage, setInfoMessage] = useState(
-    "Введіть код товару або скористайтеся пошуком за назвою, щоб побачити залишки."
-  );
+  const [infoMessage, setInfoMessage] = useState(DEFAULT_INFO_MESSAGE);
   const [lastUpdatedLabel, setLastUpdatedLabel] = useState("");
   const [copiedCode, setCopiedCode] = useState("");
 
@@ -36,48 +37,59 @@ export default function ViewAvailabilityByCode() {
     return () => clearTimeout(timeout);
   }, [copiedCode]);
 
+  const fetchAvailabilityForCode = useCallback(
+    async (rawCode) => {
+      const trimmedCode = rawCode.trim();
+
+      if (!trimmedCode) {
+        setErrorMessage("Введіть код товару для пошуку.");
+        setProductAvailability(null);
+        setInfoMessage(DEFAULT_INFO_MESSAGE);
+        return false;
+      }
+
+      setIsSearchingCode(true);
+      setErrorMessage("");
+      setInfoMessage("");
+
+      try {
+        const result = await fetchProductAvailabilityByCode(trimmedCode);
+        setProductAvailability(result);
+        setCodeQuery(trimmedCode);
+        setLastUpdatedLabel(
+          result?.lastUpdatedAt
+            ? new Date(result.lastUpdatedAt).toLocaleString("uk-UA", {
+                dateStyle: "short",
+                timeStyle: "short"
+              })
+            : ""
+        );
+
+        if (!result || (result.branches?.length ?? 0) === 0) {
+          setInfoMessage("Для цього товару не знайдено залишків у доступних підрозділах.");
+        } else {
+          setInfoMessage("");
+        }
+
+        setSearchResults([]);
+        setNameQuery("");
+        return true;
+      } catch (error) {
+        setProductAvailability(null);
+        setLastUpdatedLabel("");
+        setInfoMessage("");
+        setErrorMessage(error?.message || "Не вдалося завантажити залишки.");
+        return false;
+      } finally {
+        setIsSearchingCode(false);
+      }
+    },
+    []
+  );
+
   const handleCodeSubmit = async (event) => {
     event.preventDefault();
-    const trimmedCode = codeQuery.trim();
-
-    if (!trimmedCode) {
-      setErrorMessage("Введіть код товару для пошуку.");
-      setProductAvailability(null);
-      setInfoMessage(
-        "Введіть код товару або скористайтеся пошуком за назвою, щоб побачити залишки."
-      );
-      return;
-    }
-
-    setIsSearchingCode(true);
-    setErrorMessage("");
-    setInfoMessage("");
-
-    try {
-      const result = await fetchProductAvailabilityByCode(trimmedCode);
-      setProductAvailability(result);
-      setLastUpdatedLabel(
-        result?.lastUpdatedAt
-          ? new Date(result.lastUpdatedAt).toLocaleString("uk-UA", {
-              dateStyle: "short",
-              timeStyle: "short"
-            })
-          : ""
-      );
-
-      if (!result || (result.branches?.length ?? 0) === 0) {
-        setInfoMessage("Для цього товару не знайдено залишків у доступних підрозділах.");
-      } else {
-        setInfoMessage("");
-      }
-    } catch (error) {
-      setProductAvailability(null);
-      setLastUpdatedLabel("");
-      setInfoMessage("");
-      setErrorMessage(error?.message || "Не вдалося завантажити залишки.");
-    } finally {
-      setIsSearchingCode(false);
-    }
+    await fetchAvailabilityForCode(codeQuery);
   };
 
   const handleNameSubmit = async (event) => {
@@ -109,16 +121,23 @@ export default function ViewAvailabilityByCode() {
   };
 
   const handleCopyCode = async (code) => {
+    const trimmedCode = (code ?? "").trim();
+    if (!trimmedCode) {
+      return;
+    }
+
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(code);
-        setCopiedCode(code);
+        await navigator.clipboard.writeText(trimmedCode);
+        setCopiedCode(trimmedCode);
       }
     } catch (error) {
       console.warn("Clipboard copy failed", error);
     } finally {
-      setCodeQuery(code);
+      setCodeQuery(trimmedCode);
     }
+
+    await fetchAvailabilityForCode(trimmedCode);
   };
 
   const branches = productAvailability?.branches ?? [];
@@ -235,7 +254,7 @@ export default function ViewAvailabilityByCode() {
               </div>
             )}
 
-            {!isSearchingName && searchResults.length > 0 && (
+            {!isSearchingName && searchResults.length > 0 && !productAvailability && (
               <div className="rounded-3xl border border-indigo-50 bg-gradient-to-br from-white via-indigo-50/60 to-white p-5 shadow">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                   <div>
