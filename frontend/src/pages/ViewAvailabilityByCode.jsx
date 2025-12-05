@@ -334,7 +334,7 @@ export default function ViewAvailabilityByCode() {
                     <p>Доступні підрозділи: {branches.length}</p>
                   </div>
 
-                  <div className="hidden md:block overflow-x-auto overflow-y-auto rounded-3xl border border-gray-100 bg-white shadow-lg" style={{ maxHeight: "40vh" }}>
+                  <div className="hidden md:block rounded-3xl border border-gray-100 bg-white shadow-lg">
                     <table className="w-full text-sm align-middle min-w-[40rem] border border-gray-100">
                       <thead>
                         <tr className="text-[11px] uppercase tracking-[0.4em] text-gray-400">
@@ -357,7 +357,7 @@ export default function ViewAvailabilityByCode() {
                     </table>
                   </div>
 
-                  <div className="md:hidden space-y-3 overflow-y-auto" style={{ maxHeight: "40vh" }}>
+                  <div className="md:hidden space-y-3">
                     {branches.map((branch, index) => (
                       <div key={branch.branchId} className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow">
                         <div className="flex items-center justify-between">
