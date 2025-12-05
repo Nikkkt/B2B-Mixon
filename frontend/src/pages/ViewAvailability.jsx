@@ -569,7 +569,7 @@ export default function ViewAvailability() {
                   </span>
                 </div>
 
-                <div className="hidden md:block overflow-hidden rounded-2xl border border-gray-100 bg-white shadow" style={{ maxHeight: '30vh' }}>
+                <div className="hidden md:block overflow-hidden rounded-2xl border border-gray-100 bg-white shadow">
                   <table className="w-full text-sm align-middle">
                     <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                       <tr>
@@ -599,7 +599,7 @@ export default function ViewAvailability() {
                   </table>
                 </div>
 
-                <div className="md:hidden space-y-4 overflow-y-auto" style={{ maxHeight: '60vh' }}>
+                <div className="md:hidden space-y-4 overflow-y-auto">
                   {products.map((product, index) => (
                     <div key={product.id} className="rounded-2xl border border-gray-100 bg-gray-50/80 p-4 shadow">
                       <div className="flex justify-between">
