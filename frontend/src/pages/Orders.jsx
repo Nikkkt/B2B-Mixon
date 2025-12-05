@@ -88,13 +88,14 @@ const customSelectStyles = {
     borderRadius: '1rem',
     padding: '0.35rem',
     boxShadow: '0 15px 35px rgba(15,23,42,0.12)',
-    maxHeight: '16rem',
-    overflowY: 'auto'
+    maxHeight: '16rem'
   }),
   menuList: (provided) => ({
     ...provided,
     borderRadius: '0.6rem',
-    padding: '0.2rem'
+    padding: '0.2rem',
+    maxHeight: '15rem',
+    overflowY: 'auto'
   }),
   indicatorSeparator: () => ({ display: 'none' }),
   dropdownIndicator: (provided, state) => ({
