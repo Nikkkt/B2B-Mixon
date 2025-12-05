@@ -9,6 +9,8 @@ import {
   downloadGroupAvailabilityExcel,
   downloadGroupAvailabilityPdf
 } from "../api/availabilityApi";
+import { pickReadableValue } from "../utils/displayName";
+import { sortGroupsByNumber } from "../utils/productGroups";
 
 const customSelectStyles = {
   control: (provided, state) => ({
@@ -79,6 +81,10 @@ const formatQuantity = (value) => Number(value ?? 0).toLocaleString("uk-UA", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2
 });
+const getDirectionLabel = (direction, fallback = "—") =>
+  pickReadableValue([direction?.displayName, direction?.name, direction?.code], fallback);
+const getBranchLabel = (branch, fallback = "—") =>
+  pickReadableValue([branch?.displayName, branch?.name, branch?.code], fallback);
 
 export default function ViewAvailabilityByGroup() {
   const [directions, setDirections] = useState([]);
@@ -94,7 +100,7 @@ export default function ViewAvailabilityByGroup() {
 
   const directionOptions = useMemo(() => directions.map(direction => ({
     value: direction.id,
-    label: direction.displayName || direction.name || direction.code || "—"
+    label: getDirectionLabel(direction)
   })), [directions]);
 
   const groupOptions = useMemo(() => groups.map(group => ({
@@ -157,7 +163,8 @@ export default function ViewAvailabilityByGroup() {
         if (!isMounted) {
           return;
         }
-        setGroups(Array.isArray(data) ? data : []);
+        const sortedGroups = sortGroupsByNumber(Array.isArray(data) ? data : []);
+        setGroups(sortedGroups);
       })
       .catch(error => {
         if (!isMounted) {
@@ -406,7 +413,7 @@ export default function ViewAvailabilityByGroup() {
                       {branches.map(branch => (
                         <th key={branch.id} className="sticky top-0 border-b border-r border-gray-100 p-3 text-right text-[11px] font-semibold tracking-[0.05em] text-gray-600 uppercase whitespace-nowrap last:border-r-0">
                           <span className="block text-[10px] text-gray-400">Філіал</span>
-                          {branch.displayName || branch.name || branch.code || "—"}
+                          {getBranchLabel(branch)}
                         </th>
                       ))}
                     </tr>
@@ -465,7 +472,7 @@ export default function ViewAvailabilityByGroup() {
                           const branchQty = quantityMap.get(branch.id) ?? 0;
                           return (
                             <div key={branch.id} className="rounded-xl border border-gray-100 bg-white px-3 py-2">
-                              <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400">{branch.displayName || branch.name || branch.code || "—"}</p>
+                              <td className="p-3 text-gray-900 font-medium border-b border-r border-gray-100">{getBranchLabel(branch)}</td>
                               <p className={`text-base font-semibold ${branchQty ? "text-gray-900" : "text-gray-400"}`}>{formatQuantity(branchQty)}</p>
                             </div>
                           );

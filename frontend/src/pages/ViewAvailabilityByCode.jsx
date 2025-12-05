@@ -5,11 +5,14 @@ import {
   fetchProductAvailabilityByCode,
   searchProductsByName
 } from "../api/availabilityApi";
+import { pickReadableValue } from "../utils/displayName";
 
 const formatQuantity = (value) => Number(value ?? 0).toLocaleString("uk-UA", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2
 });
+const getBranchLabel = (branch, fallback = "—") =>
+  pickReadableValue([branch?.displayName, branch?.name, branch?.code], fallback);
 
 export default function ViewAvailabilityByCode() {
   const [codeQuery, setCodeQuery] = useState("");
@@ -326,7 +329,7 @@ export default function ViewAvailabilityByCode() {
                         {branches.map((branch, index) => (
                           <tr key={branch.branchId} className="transition hover:bg-blue-50/40">
                             <td className="p-3 text-gray-500 font-semibold border-b border-r border-gray-100">{index + 1}</td>
-                            <td className="p-3 text-gray-900 font-medium border-b border-r border-gray-100">{branch.displayName || branch.name || branch.code || "—"}</td>
+                            <td className="p-3 text-gray-900 font-medium border-b border-r border-gray-100">{getBranchLabel(branch)}</td>
                             <td className="p-3 text-gray-500 border-b border-r border-gray-100">{branch.code || "—"}</td>
                             <td className="p-3 text-right text-gray-900 font-semibold border-b border-gray-100">{formatQuantity(branch.quantity)}</td>
                           </tr>
@@ -339,7 +342,7 @@ export default function ViewAvailabilityByCode() {
                     {branches.map((branch, index) => (
                       <div key={branch.branchId} className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-gray-900">{branch.displayName || branch.name || branch.code || "—"}</p>
+                          <p className="text-sm font-semibold text-gray-900">{getBranchLabel(branch)}</p>
                           <span className="text-xs text-gray-400">№ {index + 1}</span>
                         </div>
                         <p className="text-xs text-gray-500">Код: {branch.code || "—"}</p>
