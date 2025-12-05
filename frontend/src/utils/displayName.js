@@ -1,5 +1,5 @@
 const CODE_SEPARATOR_CANDIDATES = [" - ", " – ", " — ", "-", "–", "—"];
-const PROGRAM_CODE_REGEX = /^[A-Za-zА-Яа-я]{2,6}[-_/]?\d{1,4}$/;
+const PROGRAM_CODE_CHARS_REGEX = /^[A-Za-zА-Яа-я0-9._/-]+$/;
 
 export const stripProgramCode = (value) => {
   if (value == null) {
@@ -24,7 +24,7 @@ export const stripProgramCode = (value) => {
       continue;
     }
 
-    if (PROGRAM_CODE_REGEX.test(codePart)) {
+    if (looksLikeProgramCode(codePart)) {
       return namePart;
     }
   }
@@ -40,4 +40,21 @@ export const pickReadableValue = (candidates = [], fallback = "—") => {
     }
   }
   return fallback;
+};
+
+const looksLikeProgramCode = (value) => {
+  if (!value) {
+    return false;
+  }
+
+  const candidate = String(value).trim();
+  if (!candidate) {
+    return false;
+  }
+
+  if (!PROGRAM_CODE_CHARS_REGEX.test(candidate)) {
+    return false;
+  }
+
+  return /[0-9]/.test(candidate);
 };
