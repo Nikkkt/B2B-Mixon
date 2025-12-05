@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { FaFileExcel, FaInfoCircle, FaFileUpload, FaCheckCircle, FaTimesCircle, FaMapMarkerAlt } from "react-icons/fa";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FaFileExcel, FaInfoCircle, FaFileUpload, FaCheckCircle, FaTimesCircle, FaMapMarkerAlt, FaSyncAlt } from "react-icons/fa";
 import HomeLayout from "../components/HomeLayout";
 import { uploadAvailabilityFile } from "../api/availabilityApi";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -16,9 +16,10 @@ export default function AvailabilityDownload() {
   const [profileOverride, setProfileOverride] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState(null);
+  const [profileRefreshTick, setProfileRefreshTick] = useState(0);
   const fileInputRef = useRef(null);
   const { user } = useAuth();
-  const resolvedUser = profileOverride ?? user;
+  const resolvedUser = profileOverride ?? (!profileLoading ? user : null);
 
   useEffect(() => {
     let isMounted = true;
@@ -61,7 +62,11 @@ export default function AvailabilityDownload() {
     return () => {
       isMounted = false;
     };
-  }, [user?.id]);
+  }, [user?.id, profileRefreshTick]);
+
+  const handleProfileRefresh = useCallback(() => {
+    setProfileRefreshTick((tick) => tick + 1);
+  }, []);
 
   const departmentDisplay = useMemo(() => {
     if (!resolvedUser) {
@@ -214,20 +219,38 @@ export default function AvailabilityDownload() {
 
             <div className="space-y-4">
               <div className="border border-gray-200 rounded-xl p-5 bg-gray-50">
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-3">
                   <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Поточний підрозділ</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <FaMapMarkerAlt className="text-blue-500" />
-                      {departmentDisplay.title}
-                    </p>
-                    <span className="text-[10px] uppercase tracking-[0.3em] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">
-                      {departmentDisplay.badge}
-                    </span>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <FaMapMarkerAlt className="text-blue-500" />
+                        {departmentDisplay.title}
+                      </p>
+                      <span className="text-[10px] uppercase tracking-[0.3em] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">
+                        {departmentDisplay.badge}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <p className="text-xs text-gray-500 flex-1">
+                        Залишки будуть оновлені для цього магазину або філії.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleProfileRefresh}
+                        disabled={profileLoading}
+                        className="inline-flex items-center gap-2 rounded-full border border-indigo-200 px-3 py-1 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <FaSyncAlt className={profileLoading ? "animate-spin" : ""} />
+                        {profileLoading ? "Оновлюємо..." : "Оновити дані"}
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500">
-                    Залишки будуть оновлені для цього магазину або філії.
-                  </p>
+                  {profileError && (
+                    <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                      {profileError}
+                    </div>
+                  )}
                 </div>
               </div>
 
