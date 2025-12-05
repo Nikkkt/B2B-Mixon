@@ -12,6 +12,8 @@ import {
   fetchAvailabilityGroups,
   fetchAvailabilityProducts
 } from "../api/availabilityApi";
+import { pickReadableValue } from "../utils/displayName";
+import { sortGroupsByNumber } from "../utils/productGroups";
 
 const resolveRole = (role) => {
   if (!role) {
@@ -127,6 +129,11 @@ export default function ViewAvailability() {
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const getBranchLabel = (branch, fallback = "—") => pickReadableValue([branch?.displayName, branch?.name, branch?.code], fallback);
+  const getParentBranchLabel = (branch, fallback = "") => pickReadableValue([branch?.parentDisplayName], fallback);
+  const getDirectionLabel = (direction, fallback = "—") =>
+    pickReadableValue([direction?.displayName, direction?.name, direction?.code], fallback);
+
   const branchOptionGroups = useMemo(() => {
     if (!branches?.length) {
       return [];
@@ -136,13 +143,14 @@ export default function ViewAvailability() {
     const shopItems = [];
 
     branches.forEach(branch => {
-      const baseLabel = branch.displayName || branch.name || branch.code || "—";
+      const baseLabel = getBranchLabel(branch);
+      const parentLabel = getParentBranchLabel(branch);
       const option = {
         value: branch.id,
         label: baseLabel,
         category: branch.category === "shop" ? "shop" : "branch",
-        subtitle: branch.category === "shop" && branch.parentDisplayName
-          ? `Філіал: ${branch.parentDisplayName}`
+        subtitle: branch.category === "shop" && parentLabel
+          ? `Філіал: ${parentLabel}`
           : ""
       };
 
@@ -194,7 +202,7 @@ export default function ViewAvailability() {
 
   const directionOptions = useMemo(() => directions.map(direction => ({
     value: direction.id,
-    label: direction.displayName || direction.name || direction.code || "—"
+    label: getDirectionLabel(direction)
   })), [directions]);
 
   const groupOptions = useMemo(() => groups.map(group => ({
@@ -314,7 +322,8 @@ export default function ViewAvailability() {
           if (!isMounted) {
             return;
           }
-          setGroups(Array.isArray(data) ? data : []);
+          const sortedGroups = sortGroupsByNumber(Array.isArray(data) ? data : []);
+          setGroups(sortedGroups);
         })
         .catch(error => {
           if (!isMounted) {
@@ -389,6 +398,11 @@ export default function ViewAvailability() {
   const activeDirection = directions.find(direction => direction.id === selectedDirection);
   const activeGroup = groups.find(group => group.id === selectedGroup);
   const totalAvailableAmount = formatQuantity(totalQuantity);
+  const branchDisplayName = getBranchLabel(activeBranch, "Не вибрано");
+  const branchSummaryName = getBranchLabel(activeBranch, "Філіал не обрано");
+  const directionDisplayName = getDirectionLabel(activeDirection, "Не вибрано");
+  const directionSummaryName = getDirectionLabel(activeDirection, "Напрям не обрано");
+  const parentBranchLabel = getParentBranchLabel(activeBranch);
 
   return (
     <HomeLayout>
@@ -511,7 +525,8 @@ export default function ViewAvailability() {
                     <p className="text-xs uppercase tracking-wide text-gray-400">Філіал / Магазин</p>
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold text-gray-900 truncate">
-                        {activeBranch?.displayName || activeBranch?.name || "Не вибрано"}
+                        {branchDisplayName}
+
                       </p>
                       {activeBranch && (
                         <span className={`text-[10px] uppercase tracking-[0.2em] px-2 py-0.5 rounded-full ${activeBranch.category === "shop" ? "bg-orange-50 text-orange-600" : "bg-blue-50 text-blue-700"}`}>
@@ -519,8 +534,9 @@ export default function ViewAvailability() {
                         </span>
                       )}
                     </div>
-                    {activeBranch?.category === "shop" && activeBranch?.parentDisplayName && (
-                      <p className="text-xs text-gray-500">Філіал: {activeBranch.parentDisplayName}</p>
+                    {activeBranch?.category === "shop" && parentBranchLabel && (
+                      <p className="text-xs text-gray-500">Філіал: {parentBranchLabel}</p>
+
                     )}
                   </div>
                 </div>
@@ -530,7 +546,8 @@ export default function ViewAvailability() {
                   </span>
                   <div className="flex-1">
                     <p className="text-xs uppercase tracking-wide text-gray-400">Напрям</p>
-                    <p className="text-sm font-semibold text-gray-900 truncate">{activeDirection?.name ?? "Не вибрано"}</p>
+                    <p className="text-sm font-semibold text-gray-900 truncate">{directionDisplayName}</p>
+
                   </div>
                 </div>
                 <div className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-inner flex items-center gap-3">
@@ -539,7 +556,7 @@ export default function ViewAvailability() {
                   </span>
                   <div className="flex-1">
                     <p className="text-xs uppercase tracking-wide text-gray-400">Група</p>
-                    <p className="text-sm font-semibold text-gray-900 truncate">{activeGroup?.name ?? "Не вибрано"}</p>
+                    <p className="text-sm font-semibold text-gray-900 truncate">{activeGroup?.name || "Група не обрана"}</p>
                   </div>
                 </div>
                 <div className="rounded-2xl border border-dashed border-emerald-200 bg-white/80 p-4 shadow-sm">
@@ -560,7 +577,8 @@ export default function ViewAvailability() {
                   <div>
                     <p className="text-lg font-semibold text-gray-800">Результат підбору</p>
                     <p className="text-sm text-gray-500">
-                      {activeBranch?.name || "Філіал не обрано"} • {activeDirection?.name || "Напрям не обрано"} • {activeGroup?.name || "Група не обрана"}
+                      {branchSummaryName} • {directionSummaryName} • {activeGroup?.name || "Група не обрана"}
+
                     </p>
                   </div>
                   <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1 text-xs font-semibold text-emerald-700">
