@@ -3,6 +3,9 @@ import { FaFileExcel, FaInfoCircle, FaFileUpload, FaCheckCircle, FaTimesCircle, 
 import HomeLayout from "../components/HomeLayout";
 import { uploadAvailabilityFile } from "../api/availabilityApi";
 import { useAuth } from "../context/AuthContext.jsx";
+import { pickReadableValue } from "../utils/displayName";
+
+const formatDepartmentLabel = (value, fallback = "—") => pickReadableValue([value], fallback);
 
 export default function AvailabilityDownload() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -18,11 +21,11 @@ export default function AvailabilityDownload() {
     }
 
     if (user.departmentShopName) {
-      return { title: user.departmentShopName, badge: "Магазин" };
+      return { title: formatDepartmentLabel(user.departmentShopName), badge: "Магазин" };
     }
 
     if (user.defaultBranchName) {
-      return { title: user.defaultBranchName, badge: "Філія" };
+      return { title: formatDepartmentLabel(user.defaultBranchName), badge: "Філія" };
     }
 
     return { title: "Підрозділ не налаштовано", badge: "—" };
@@ -52,7 +55,8 @@ export default function AvailabilityDownload() {
       const result = await uploadAvailabilityFile(selectedFile);
       setUploadResult(result);
       setUploadState("success");
-      setMessage(`Оновлено ${result.productsImported} товарів для ${result.departmentDisplayName}.`);
+      const readableDepartment = formatDepartmentLabel(result.departmentDisplayName);
+      setMessage(`Оновлено ${result.productsImported} товарів для ${readableDepartment}.`);
       setSelectedFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";

@@ -5,12 +5,11 @@ import HomeLayout from "../components/HomeLayout";
 import { useCart } from "../context/CartContext.jsx";
 import { fetchOrderDirections, fetchOrderGroups, fetchOrderProducts } from "../api/ordersApi";
 import { useNotifications } from "../context/NotificationContext.jsx";
+import { pickReadableValue } from "../utils/displayName";
+import { sortGroupsByNumber } from "../utils/productGroups";
 
-const toDirectionLabel = (direction) => direction?.displayName?.trim()
-  || direction?.title
-  || direction?.code
-  || direction?.name
-  || "—";
+const getDirectionLabel = (direction, fallback = "—") =>
+  pickReadableValue([direction?.displayName, direction?.title, direction?.code, direction?.name], fallback);
 
 const toGroupLabel = (group) => {
   const parts = [group?.groupNumber, group?.name].filter(Boolean);
@@ -120,7 +119,7 @@ export default function Orders() {
 
   const directionOptions = useMemo(() => directions.map((direction) => ({
     value: direction.id,
-    label: toDirectionLabel(direction),
+    label: getDirectionLabel(direction),
   })), [directions]);
 
   const groupOptions = useMemo(() => groups.map((group) => ({
@@ -130,7 +129,7 @@ export default function Orders() {
 
   const activeDirectionName = useMemo(() => {
     const found = directions.find((direction) => direction.id === selectedDirection);
-    return found ? toDirectionLabel(found) : null;
+    return found ? getDirectionLabel(found) : null;
   }, [directions, selectedDirection]);
 
   const activeGroupName = useMemo(() => {
@@ -183,7 +182,8 @@ export default function Orders() {
         if (!isMounted) {
           return;
         }
-        setGroups(response ?? []);
+        const sortedGroups = sortGroupsByNumber(response ?? []);
+        setGroups(sortedGroups);
       } catch (error) {
         if (isMounted) {
           setErrorMessage(error.message ?? "Не вдалося завантажити групи");
