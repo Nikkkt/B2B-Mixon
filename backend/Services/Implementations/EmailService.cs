@@ -61,7 +61,9 @@ public class EmailService : IEmailService
             subject,
             content = new[]
             {
-                new { type = "text/plain", value = body }
+                // Prefer HTML so templates render nicely; include text fallback
+                new { type = "text/html", value = body },
+                new { type = "text/plain", value = StripHtml(body) }
             }
         };
 
@@ -102,7 +104,19 @@ public class EmailService : IEmailService
                 EnableSsl = true
             };
 
-            var mail = new MailMessage(username, to, subject, body);
+            var mail = new MailMessage
+            {
+                From = new MailAddress(username),
+                Subject = subject,
+                Body = body,
+                IsBodyHtml = true
+            };
+            mail.To.Add(to);
+
+            // Add plain-text alternate view for clients that block HTML
+            var plain = AlternateView.CreateAlternateViewFromString(StripHtml(body), null, "text/plain");
+            mail.AlternateViews.Add(plain);
+
             await client.SendMailAsync(mail);
         }
         catch (SmtpException ex) when (ex.InnerException is SocketException socketEx && socketEx.SocketErrorCode == SocketError.NetworkUnreachable)
@@ -115,5 +129,38 @@ public class EmailService : IEmailService
             _logger.LogError(ex, "Failed to send email via SMTP.");
             throw new AuthException("Unable to send email at this time. Please try again later.", StatusCodes.Status503ServiceUnavailable);
         }
+    }
+
+    private static string StripHtml(string html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return string.Empty;
+        }
+
+        var array = new char[html.Length];
+        var arrayIndex = 0;
+        var inside = false;
+
+        foreach (var ch in html)
+        {
+            switch (ch)
+            {
+                case '<':
+                    inside = true;
+                    continue;
+                case '>':
+                    inside = false;
+                    continue;
+                default:
+                    if (!inside)
+                    {
+                        array[arrayIndex++] = ch;
+                    }
+                    break;
+            }
+        }
+
+        return new string(array, 0, arrayIndex);
     }
 }
