@@ -54,14 +54,45 @@ public class OrderService : IOrderService
         // Generate order number
         var orderNumber = await GenerateOrderNumberAsync();
 
-        // Determine shipping department: prefer explicit request, then user's shop, then user's default branch
-        var shippingDepartmentId = request.ShippingDepartmentId
-            ?? user.DepartmentShopId
-            ?? user.DefaultBranchId;
+        // Resolve shipping department with fallback to the first department that actually has inventory snapshots
+        var candidateDepartmentIds = new List<Guid>();
+        if (request.ShippingDepartmentId.HasValue)
+        {
+            candidateDepartmentIds.Add(request.ShippingDepartmentId.Value);
+        }
+        if (user.DepartmentShopId.HasValue && !candidateDepartmentIds.Contains(user.DepartmentShopId.Value))
+        {
+            candidateDepartmentIds.Add(user.DepartmentShopId.Value);
+        }
+        if (user.DefaultBranchId.HasValue && !candidateDepartmentIds.Contains(user.DefaultBranchId.Value))
+        {
+            candidateDepartmentIds.Add(user.DefaultBranchId.Value);
+        }
 
-        if (shippingDepartmentId == null)
+        if (candidateDepartmentIds.Count == 0)
         {
             throw new InvalidOperationException("Не вказано підрозділ відвантаження для замовлення.");
+        }
+
+        var productIds = cart.Items.Select(ci => ci.ProductId).Distinct().ToList();
+        var shippingDepartmentId = candidateDepartmentIds[0];
+
+        if (productIds.Count > 0)
+        {
+            var departmentsWithStock = await _db.InventorySnapshots
+                .Where(snapshot => candidateDepartmentIds.Contains(snapshot.DepartmentId) && productIds.Contains(snapshot.ProductId))
+                .Select(snapshot => snapshot.DepartmentId)
+                .Distinct()
+                .ToListAsync();
+
+            var matched = departmentsWithStock
+                .OrderBy(id => candidateDepartmentIds.IndexOf(id))
+                .FirstOrDefault();
+
+            if (matched != Guid.Empty)
+            {
+                shippingDepartmentId = matched;
+            }
         }
 
         // Calculate totals

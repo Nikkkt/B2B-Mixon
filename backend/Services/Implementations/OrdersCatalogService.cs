@@ -109,8 +109,17 @@ public class OrdersCatalogService : IOrdersCatalogService
         var access = await ResolveAccessAsync(userId);
         EnsureGroupAccess(productGroupId, access);
 
+        var allowedDepartmentIds = await ResolveAllowedDepartmentsAsync(userId);
+
         var stockQuery = _db.InventorySnapshots
-            .AsNoTracking()
+            .AsNoTracking();
+
+        if (allowedDepartmentIds.Count > 0)
+        {
+            stockQuery = stockQuery.Where(snapshot => allowedDepartmentIds.Contains(snapshot.DepartmentId));
+        }
+
+        var stockAggregatedQuery = stockQuery
             .GroupBy(snapshot => snapshot.ProductId)
             .Select(g => new
             {
@@ -123,7 +132,7 @@ public class OrdersCatalogService : IOrdersCatalogService
             .AsNoTracking()
             .Where(product => product.ProductGroupId == productGroupId)
             .GroupJoin(
-                stockQuery,
+                stockAggregatedQuery,
                 product => product.Id,
                 stock => stock.ProductId,
                 (product, stockInfo) => new { product, stock = stockInfo.FirstOrDefault() })
