@@ -381,18 +381,19 @@ public class OrdersCatalogService : IOrdersCatalogService
             return new List<Guid>();
         }
 
-        var result = new List<Guid>();
+        // For non-admin/manager users, prefer the primary shipping point so availability aligns with reservation
         if (user.DepartmentShopId.HasValue)
         {
-            result.Add(user.DepartmentShopId.Value);
+            return new List<Guid> { user.DepartmentShopId.Value };
         }
 
-        if (user.DefaultBranchId.HasValue && !result.Contains(user.DefaultBranchId.Value))
+        if (user.DefaultBranchId.HasValue)
         {
-            result.Add(user.DefaultBranchId.Value);
+            return new List<Guid> { user.DefaultBranchId.Value };
         }
 
-        return result;
+        // No linked department -> no restriction (will show nothing if no snapshots)
+        return new List<Guid>();
     }
 
     private sealed record UserAccess(bool HasFullAccess, IReadOnlyCollection<Guid> AllowedGroupIds)
