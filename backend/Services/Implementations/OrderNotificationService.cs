@@ -192,7 +192,7 @@ public class OrderNotificationService : IOrderNotificationService
             EnableSsl = true
         };
 
-        var message = new MailMessage
+        var mailMessage = new MailMessage
         {
             From = new MailAddress(fromEmail, fromName),
             Subject = subject,
@@ -200,11 +200,11 @@ public class OrderNotificationService : IOrderNotificationService
             IsBodyHtml = true
         };
 
-        message.To.Add(toEmail);
+        mailMessage.To.Add(toEmail);
 
         try
         {
-            await client.SendMailAsync(message);
+            await client.SendMailAsync(mailMessage);
         }
         catch (Exception ex)
         {
