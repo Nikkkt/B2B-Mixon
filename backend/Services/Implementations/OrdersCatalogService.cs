@@ -390,24 +390,32 @@ public class OrdersCatalogService : IOrdersCatalogService
         }
 
         var roles = user.Roles ?? Array.Empty<int>();
-        if (roles.Contains((int)UserRole.Admin) || roles.Contains((int)UserRole.Manager))
+        var isPrivileged = roles.Contains((int)UserRole.Admin) || roles.Contains((int)UserRole.Manager);
+
+        // Build ordered preference list: DepartmentShopId first, then DefaultBranchId
+        var preferred = new List<Guid>();
+        if (user.DepartmentShopId.HasValue)
         {
-            // Empty list = no restriction (all departments)
+            preferred.Add(user.DepartmentShopId.Value);
+        }
+        if (user.DefaultBranchId.HasValue && !preferred.Contains(user.DefaultBranchId.Value))
+        {
+            preferred.Add(user.DefaultBranchId.Value);
+        }
+
+        // If no linkage and privileged -> unrestricted (empty list means no filter)
+        if (isPrivileged && preferred.Count == 0)
+        {
             return new List<Guid>();
         }
 
-        // For non-admin/manager users, prefer the primary shipping point so availability aligns with reservation
-        if (user.DepartmentShopId.HasValue)
+        // If linkage exists, use it (for both privileged and non-privileged)
+        if (preferred.Count > 0)
         {
-            return new List<Guid> { user.DepartmentShopId.Value };
+            return preferred;
         }
 
-        if (user.DefaultBranchId.HasValue)
-        {
-            return new List<Guid> { user.DefaultBranchId.Value };
-        }
-
-        // No linked department -> no restriction (will show nothing if no snapshots)
+        // No linkage and not privileged -> no restriction but will show nothing if no snapshots
         return new List<Guid>();
     }
 
@@ -415,7 +423,7 @@ public class OrdersCatalogService : IOrdersCatalogService
     {
         var allowed = await ResolveAllowedDepartmentsAsync(userId);
 
-        // Empty allowed list means no restriction (admins/managers)
+        // Empty allowed list means no restriction (admins/managers with no linkage)
         if (allowed.Count == 0)
         {
             return new List<Guid>();
@@ -426,6 +434,10 @@ public class OrdersCatalogService : IOrdersCatalogService
             return allowed;
         }
 
+        var allowedOrder = allowed
+            .Select((id, index) => new { id, index })
+            .ToDictionary(x => x.id, x => x.index);
+
         var departmentsWithStock = await _db.InventorySnapshots
             .AsNoTracking()
             .Where(snapshot => allowed.Contains(snapshot.DepartmentId) && productIds.Contains(snapshot.ProductId))
@@ -435,7 +447,11 @@ public class OrdersCatalogService : IOrdersCatalogService
 
         if (departmentsWithStock.Count > 0)
         {
-            return departmentsWithStock;
+            // Choose the first allowed department that actually has stock, mirroring reservation choice
+            var firstMatch = departmentsWithStock
+                .OrderBy(id => allowedOrder.TryGetValue(id, out var idx) ? idx : int.MaxValue)
+                .First();
+            return new List<Guid> { firstMatch };
         }
 
         // If no snapshots yet, fall back to allowed list so queries don't drop everything
