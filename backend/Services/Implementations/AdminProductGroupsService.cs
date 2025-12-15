@@ -3,6 +3,7 @@ using System.Text;
 using backend.Data;
 using backend.DTOs.AdminProductGroups;
 using backend.Models;
+using backend.Services.Helpers;
 using ExcelDataReader;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -196,6 +197,7 @@ public class AdminProductGroupsService : IAdminProductGroupsService
         }
 
         var result = new AdminProductGroupUploadResultDto();
+        var updatedSnapshots = new List<DiscountSnapshot>();
         var now = DateTime.UtcNow;
 
         for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
@@ -228,6 +230,8 @@ public class AdminProductGroupsService : IAdminProductGroupsService
                 group.LargeWholesaleDiscount = large;
                 group.UpdatedAt = now;
                 result.Updated++;
+
+                updatedSnapshots.Add(new DiscountSnapshot(group.Id, small, wholesale, large));
             }
             catch (Exception ex)
             {
@@ -240,6 +244,14 @@ public class AdminProductGroupsService : IAdminProductGroupsService
         }
 
         await _db.SaveChangesAsync();
+
+        // Sync uploaded discounts into profile-group mapping used by pricing
+        if (updatedSnapshots.Count > 0)
+        {
+            await UpsertProfileDiscountsAsync(updatedSnapshots, now);
+            await _db.SaveChangesAsync();
+        }
+
         result.Message = $"Оновлено {result.Updated}, пропущено {result.Skipped}, не знайдено {result.NotFound}.";
         return result;
     }
@@ -367,6 +379,93 @@ public class AdminProductGroupsService : IAdminProductGroupsService
         public int SmallWholesale { get; set; }
         public int Wholesale { get; set; }
         public int LargeWholesale { get; set; }
+    }
+
+    private sealed record DiscountSnapshot(Guid GroupId, decimal? Small, decimal? Wholesale, decimal? Large);
+
+    private sealed record ProfileDefinition(string Code, string Name, string Description, Func<DiscountSnapshot, decimal> ResolvePercent);
+
+    private async Task UpsertProfileDiscountsAsync(IReadOnlyCollection<DiscountSnapshot> snapshots, DateTime timestampUtc)
+    {
+        if (snapshots == null || snapshots.Count == 0)
+        {
+            return;
+        }
+
+        var definitions = new[]
+        {
+            new ProfileDefinition("none", "Немає знижки", "Ціни без знижок", _ => 0m),
+            new ProfileDefinition("small-wholesale", "Малий опт", "Базові знижки рівня Малий опт", snap => snap.Small ?? 0m),
+            new ProfileDefinition("wholesale", "Опт", "Базові знижки рівня Опт", snap => snap.Wholesale ?? 0m),
+            new ProfileDefinition("large-wholesale", "Великий опт", "Базові знижки рівня Великий опт", snap => snap.Large ?? 0m)
+        };
+
+        var codeComparer = StringComparer.OrdinalIgnoreCase;
+        var profileMap = await _db.DiscountProfiles
+            .Where(profile => definitions.Select(d => d.Code).Contains(profile.Code))
+            .ToDictionaryAsync(profile => profile.Code, codeComparer);
+
+        foreach (var definition in definitions)
+        {
+            if (!profileMap.TryGetValue(definition.Code, out var profile))
+            {
+                profile = new DiscountProfile
+                {
+                    Code = definition.Code,
+                    Name = definition.Name,
+                    Description = definition.Description,
+                    CreatedAt = timestampUtc,
+                    UpdatedAt = timestampUtc
+                };
+
+                _db.DiscountProfiles.Add(profile);
+                profileMap[definition.Code] = profile;
+            }
+        }
+
+        await _db.SaveChangesAsync();
+
+        var profileIds = profileMap.Values.Select(p => p.Id).ToList();
+        var groupIds = snapshots.Select(s => s.GroupId).ToList();
+
+        var existing = await _db.DiscountProfileGroupDiscounts
+            .Where(d => profileIds.Contains(d.DiscountProfileId) && groupIds.Contains(d.ProductGroupId))
+            .ToListAsync();
+
+        var existingLookup = existing.ToDictionary(
+            d => (d.DiscountProfileId, d.ProductGroupId),
+            d => d);
+
+        foreach (var definition in definitions)
+        {
+            var profile = profileMap[definition.Code];
+
+            foreach (var snapshot in snapshots)
+            {
+                var percent = DiscountMath.NormalizePercent(definition.ResolvePercent(snapshot));
+                var key = (profile.Id, snapshot.GroupId);
+
+                if (existingLookup.TryGetValue(key, out var row))
+                {
+                    if (row.Percent != percent)
+                    {
+                        row.Percent = percent;
+                    }
+                }
+                else
+                {
+                    var newRow = new DiscountProfileGroupDiscount
+                    {
+                        DiscountProfileId = profile.Id,
+                        ProductGroupId = snapshot.GroupId,
+                        Percent = percent
+                    };
+
+                    _db.DiscountProfileGroupDiscounts.Add(newRow);
+                    existingLookup[key] = newRow;
+                }
+            }
+        }
     }
 }
 
