@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using backend.Data;
 using backend.DTOs.Orders;
 using backend.Enums;
@@ -110,7 +111,13 @@ public class OrdersCatalogService : IOrdersCatalogService
         var access = await ResolveAccessAsync(userId);
         EnsureGroupAccess(productGroupId, access);
 
-        var allowedDepartmentIds = await ResolveAllowedDepartmentsAsync(userId);
+        var productIdsInGroup = await _db.Products
+            .AsNoTracking()
+            .Where(product => product.ProductGroupId == productGroupId)
+            .Select(product => product.Id)
+            .ToListAsync();
+
+        var allowedDepartmentIds = await ResolveStockDepartmentsAsync(userId, productIdsInGroup);
 
         var stockQuery = _db.InventorySnapshots
             .AsNoTracking();
@@ -209,9 +216,17 @@ public class OrdersCatalogService : IOrdersCatalogService
             })
             .ToDictionaryAsync(p => p.Sku, StringComparer.OrdinalIgnoreCase);
 
-        var stockLookup = await _db.InventorySnapshots
-            .AsNoTracking()
-            .Where(snapshot => productMap.Values.Select(p => p.Id).Contains(snapshot.ProductId))
+        var productIds = productMap.Values.Select(p => p.Id).ToList();
+        var allowedDepartmentIds = await ResolveStockDepartmentsAsync(userId, productIds);
+
+        var stockQuery = _db.InventorySnapshots.AsNoTracking();
+        if (allowedDepartmentIds.Count > 0)
+        {
+            stockQuery = stockQuery.Where(snapshot => allowedDepartmentIds.Contains(snapshot.DepartmentId));
+        }
+
+        var stockLookup = await stockQuery
+            .Where(snapshot => productIds.Contains(snapshot.ProductId))
             .GroupBy(snapshot => snapshot.ProductId)
             .Select(grouping => new
             {
@@ -394,6 +409,37 @@ public class OrdersCatalogService : IOrdersCatalogService
 
         // No linked department -> no restriction (will show nothing if no snapshots)
         return new List<Guid>();
+    }
+
+    private async Task<List<Guid>> ResolveStockDepartmentsAsync(Guid userId, IReadOnlyCollection<Guid> productIds)
+    {
+        var allowed = await ResolveAllowedDepartmentsAsync(userId);
+
+        // Empty allowed list means no restriction (admins/managers)
+        if (allowed.Count == 0)
+        {
+            return new List<Guid>();
+        }
+
+        if (productIds == null || productIds.Count == 0)
+        {
+            return allowed;
+        }
+
+        var departmentsWithStock = await _db.InventorySnapshots
+            .AsNoTracking()
+            .Where(snapshot => allowed.Contains(snapshot.DepartmentId) && productIds.Contains(snapshot.ProductId))
+            .Select(snapshot => snapshot.DepartmentId)
+            .Distinct()
+            .ToListAsync();
+
+        if (departmentsWithStock.Count > 0)
+        {
+            return departmentsWithStock;
+        }
+
+        // If no snapshots yet, fall back to allowed list so queries don't drop everything
+        return allowed;
     }
 
     private sealed record UserAccess(bool HasFullAccess, IReadOnlyCollection<Guid> AllowedGroupIds)
