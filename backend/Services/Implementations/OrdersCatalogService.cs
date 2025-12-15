@@ -392,7 +392,13 @@ public class OrdersCatalogService : IOrdersCatalogService
         var roles = user.Roles ?? Array.Empty<int>();
         var isPrivileged = roles.Contains((int)UserRole.Admin) || roles.Contains((int)UserRole.Manager);
 
-        // Build ordered preference list: DepartmentShopId first, then DefaultBranchId
+        // Admin/manager: unrestricted (show all), so availability never disappears
+        if (isPrivileged)
+        {
+            return new List<Guid>();
+        }
+
+        // Non-privileged: prefer linked departments
         var preferred = new List<Guid>();
         if (user.DepartmentShopId.HasValue)
         {
@@ -403,27 +409,14 @@ public class OrdersCatalogService : IOrdersCatalogService
             preferred.Add(user.DefaultBranchId.Value);
         }
 
-        // If no linkage and privileged -> unrestricted (empty list means no filter)
-        if (isPrivileged && preferred.Count == 0)
-        {
-            return new List<Guid>();
-        }
-
-        // If linkage exists, use it (for both privileged and non-privileged)
-        if (preferred.Count > 0)
-        {
-            return preferred;
-        }
-
-        // No linkage and not privileged -> no restriction but will show nothing if no snapshots
-        return new List<Guid>();
+        return preferred;
     }
 
     private async Task<List<Guid>> ResolveStockDepartmentsAsync(Guid userId, IReadOnlyCollection<Guid> productIds)
     {
         var allowed = await ResolveAllowedDepartmentsAsync(userId);
 
-        // Empty allowed list means no restriction (admins/managers with no linkage)
+        // Empty allowed list means no restriction (admins/managers or users without linkage)
         if (allowed.Count == 0)
         {
             return new List<Guid>();
@@ -454,7 +447,7 @@ public class OrdersCatalogService : IOrdersCatalogService
             return new List<Guid> { firstMatch };
         }
 
-        // If no snapshots yet, fall back to allowed list so queries don't drop everything
+        // If no snapshots yet, fall back to allowed (for non-privileged) or unrestricted (for privileged handled by allowed = empty)
         return allowed;
     }
 
