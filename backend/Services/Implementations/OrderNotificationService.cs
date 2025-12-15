@@ -181,8 +181,9 @@ public class OrderNotificationService : IOrderNotificationService
 
         if (string.IsNullOrWhiteSpace(smtpHost) || string.IsNullOrWhiteSpace(fromEmail))
         {
-            _logger.LogWarning("Email configuration is missing. Skipping email send.");
-            return;
+            var message = $"Email configuration is missing. Host or FromEmail is empty. Host='{smtpHost}', FromEmail='{fromEmail}'.";
+            _logger.LogError(message);
+            throw new InvalidOperationException(message);
         }
 
         using var client = new SmtpClient(smtpHost, smtpPort)
@@ -201,7 +202,15 @@ public class OrderNotificationService : IOrderNotificationService
 
         message.To.Add(toEmail);
 
-        await client.SendMailAsync(message);
+        try
+        {
+            await client.SendMailAsync(message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send email via SMTP. Host={Host}, Port={Port}, From={From}", smtpHost, smtpPort, fromEmail);
+            throw;
+        }
     }
 
     private string GenerateCustomerEmailBody(Order order)
