@@ -20,6 +20,7 @@ public class UserDiscountService : IUserDiscountService
         var user = await _db.Users
             .AsNoTracking()
             .Include(u => u.SpecialDiscounts)
+            .Include(u => u.DiscountProfile)
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         if (user == null)
@@ -37,6 +38,21 @@ public class UserDiscountService : IUserDiscountService
                 .ToListAsync(cancellationToken);
 
             foreach (var entry in defaults)
+            {
+                profileDiscounts[entry.ProductGroupId] = DiscountMath.NormalizePercent(entry.Percent);
+            }
+        }
+
+        // Legacy fallback: if no explicit profile-group discounts exist, use code-based group discounts
+        if (profileDiscounts.Count == 0 && user.DiscountProfile != null && !string.IsNullOrWhiteSpace(user.DiscountProfile.Code))
+        {
+            var legacyDefaults = await _db.GroupDiscounts
+                .AsNoTracking()
+                .Where(d => d.DiscountProfileCode == user.DiscountProfile.Code)
+                .Select(d => new { d.ProductGroupId, d.Percent })
+                .ToListAsync(cancellationToken);
+
+            foreach (var entry in legacyDefaults)
             {
                 profileDiscounts[entry.ProductGroupId] = DiscountMath.NormalizePercent(entry.Percent);
             }
