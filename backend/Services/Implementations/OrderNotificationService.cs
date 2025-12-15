@@ -123,7 +123,9 @@ public class OrderNotificationService : IOrderNotificationService
     {
         try
         {
-            var shippingDepartmentId = order.ShippingDepartmentId ?? order.CreatedByUser?.DefaultBranchId;
+            var shippingDepartmentId = order.ShippingDepartmentId
+                ?? order.CreatedByUser?.DefaultBranchId
+                ?? order.CreatedByUser?.DepartmentShopId;
 
             if (shippingDepartmentId == null)
             {
