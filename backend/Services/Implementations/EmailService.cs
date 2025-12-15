@@ -79,9 +79,9 @@ public class EmailService : IEmailService
             subject,
             content = new[]
             {
-                // Prefer HTML so templates render nicely; include text fallback
-                new { type = "text/html", value = body },
-                new { type = "text/plain", value = StripHtml(body) }
+                // SendGrid requires text/plain first, then text/html
+                new { type = "text/plain", value = StripHtml(body) },
+                new { type = "text/html", value = body }
             }
         };
 
