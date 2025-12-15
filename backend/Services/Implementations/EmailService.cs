@@ -67,7 +67,7 @@ public class EmailService : IEmailService
             }
         };
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "mail/send")
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.sendgrid.com/v3/mail/send")
         {
             Content = JsonContent.Create(payload)
         };
