@@ -36,10 +36,20 @@ public class EmailService : IEmailService
     {
         if (!string.IsNullOrWhiteSpace(_sendGridApiKey))
         {
+            _logger.LogInformation("EmailService: sending via SendGrid");
             await SendViaSendGridAsync(to, subject, body);
             return;
         }
 
+        // If no SendGrid API key, require SMTP to be configured; otherwise fail fast
+        var host = Environment.GetEnvironmentVariable("EMAIL_HOST");
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            _logger.LogError("EmailService: no SENDGRID_API_KEY and no EMAIL_HOST configured. Cannot send email.");
+            throw new AuthException("Email service is not configured.", StatusCodes.Status503ServiceUnavailable);
+        }
+
+        _logger.LogInformation("EmailService: sending via SMTP");
         await SendViaSmtpAsync(to, subject, body);
     }
 
