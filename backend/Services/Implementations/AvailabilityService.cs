@@ -51,12 +51,24 @@ public class AvailabilityService : IAvailabilityService
 
         if (!IsManagerOrAdmin(user))
         {
-            if (!user.DefaultBranchId.HasValue)
+            var allowedDepartmentIds = new List<Guid>();
+
+            if (user.DepartmentShopId.HasValue)
+            {
+                allowedDepartmentIds.Add(user.DepartmentShopId.Value);
+            }
+
+            if (user.DefaultBranchId.HasValue)
+            {
+                allowedDepartmentIds.Add(user.DefaultBranchId.Value);
+            }
+
+            if (allowedDepartmentIds.Count == 0)
             {
                 return Array.Empty<AvailabilityBranchDto>();
             }
 
-            departmentsQuery = departmentsQuery.Where(department => department.Id == user.DefaultBranchId.Value);
+            departmentsQuery = departmentsQuery.Where(department => allowedDepartmentIds.Contains(department.Id));
         }
 
         var branches = await (
@@ -941,12 +953,24 @@ public class AvailabilityService : IAvailabilityService
 
         if (!IsManagerOrAdmin(user))
         {
-            if (!user.DefaultBranchId.HasValue)
+            var allowedDepartmentIds = new List<Guid>();
+
+            if (user.DepartmentShopId.HasValue)
+            {
+                allowedDepartmentIds.Add(user.DepartmentShopId.Value);
+            }
+
+            if (user.DefaultBranchId.HasValue)
+            {
+                allowedDepartmentIds.Add(user.DefaultBranchId.Value);
+            }
+
+            if (allowedDepartmentIds.Count == 0)
             {
                 return Array.Empty<DepartmentAvailabilityContext>();
             }
 
-            departmentsQuery = departmentsQuery.Where(department => department.Id == user.DefaultBranchId.Value);
+            departmentsQuery = departmentsQuery.Where(department => allowedDepartmentIds.Contains(department.Id));
         }
 
         var departments = await departmentsQuery

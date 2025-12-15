@@ -111,7 +111,11 @@ export default function ViewAvailability() {
   // ... (Весь код станів та useEffect залишається без змін) ...
   const { user } = useAuth();
   const userRole = resolveRole(user?.role);
-  const userBranchId = user?.defaultBranchId ?? user?.DefaultBranchId ?? null;
+  const preferredBranchId = user?.departmentShopId
+    ?? user?.DepartmentShopId
+    ?? user?.defaultBranchId
+    ?? user?.DefaultBranchId
+    ?? null;
   const isBranchRestricted = userRole === "user";
 
   const [branches, setBranches] = useState([]);
@@ -234,11 +238,22 @@ export default function ViewAvailability() {
           return;
         }
 
-        if (isBranchRestricted) {
-          setSelectedBranch(nextBranches[0]?.id ?? null);
-        } else {
-          setSelectedBranch(prev => prev ?? nextBranches[0]?.id ?? null);
-        }
+        setSelectedBranch(prev => {
+          // Prefer the branch linked to the user (shop or branch) if it exists in the options
+          if (preferredBranchId && nextBranches.some(branch => branch.id === preferredBranchId)) {
+            return preferredBranchId;
+          }
+
+          if (isBranchRestricted) {
+            return nextBranches[0]?.id ?? null;
+          }
+
+          if (prev && nextBranches.some(branch => branch.id === prev)) {
+            return prev;
+          }
+
+          return nextBranches[0]?.id ?? null;
+        });
       })
       .catch(error => {
         if (!isMounted) {
@@ -257,7 +272,7 @@ export default function ViewAvailability() {
     return () => {
       isMounted = false;
     };
-  }, [isBranchRestricted]);
+  }, [isBranchRestricted, preferredBranchId]);
 
   useEffect(() => {
     if (selectedBranch) {
