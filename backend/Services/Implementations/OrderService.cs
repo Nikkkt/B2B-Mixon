@@ -619,16 +619,14 @@ public class OrderService : IOrderService
             var entries = inventoryEntries.Where(entry => entry.ProductId == request.ProductId).ToList();
             var available = entries.Sum(entry => entry.AvailableQuantity);
 
-            if (available < request.Quantity || !entries.Any())
+            // If there is no stock recorded, skip reservation but still allow order creation
+            if (!entries.Any() || available <= 0)
             {
-                var productLabel = request.Sample.Product != null
-                    ? $"{request.Sample.Product.Sku} — {request.Sample.Product.Name}"
-                    : request.ProductId.ToString();
-
-                throw new InvalidOperationException($"Недостатньо залишків товару \"{productLabel}\" для відвантаження.");
+                continue;
             }
 
-            var remaining = request.Quantity;
+            // Reserve only what is available; do not block order when stock is insufficient
+            var remaining = Math.Min(request.Quantity, available);
 
             foreach (var entry in entries)
             {
