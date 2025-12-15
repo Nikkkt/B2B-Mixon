@@ -54,8 +54,10 @@ public class OrderService : IOrderService
         // Generate order number
         var orderNumber = await GenerateOrderNumberAsync();
 
-        // Determine shipping department: use provided department or default to user's department
-        var shippingDepartmentId = request.ShippingDepartmentId ?? user.DepartmentShopId;
+        // Determine shipping department: prefer explicit request, then user's shop, then user's default branch
+        var shippingDepartmentId = request.ShippingDepartmentId
+            ?? user.DepartmentShopId
+            ?? user.DefaultBranchId;
 
         if (shippingDepartmentId == null)
         {
