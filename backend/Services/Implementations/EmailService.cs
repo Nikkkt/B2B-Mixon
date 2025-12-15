@@ -34,23 +34,31 @@ public class EmailService : IEmailService
 
     public async Task SendAsync(string to, string subject, string body)
     {
-        if (!string.IsNullOrWhiteSpace(_sendGridApiKey))
+        try
         {
-            _logger.LogInformation("EmailService: sending via SendGrid");
-            await SendViaSendGridAsync(to, subject, body);
-            return;
-        }
+            if (!string.IsNullOrWhiteSpace(_sendGridApiKey))
+            {
+                _logger.LogInformation("EmailService: sending via SendGrid to {To}", to);
+                await SendViaSendGridAsync(to, subject, body);
+                return;
+            }
 
-        // If no SendGrid API key, require SMTP to be configured; otherwise fail fast
-        var host = Environment.GetEnvironmentVariable("EMAIL_HOST");
-        if (string.IsNullOrWhiteSpace(host))
+            // If no SendGrid API key, require SMTP to be configured; otherwise fail fast
+            var host = Environment.GetEnvironmentVariable("EMAIL_HOST");
+            if (string.IsNullOrWhiteSpace(host))
+            {
+                _logger.LogError("EmailService: no SENDGRID_API_KEY and no EMAIL_HOST configured. Cannot send email.");
+                throw new AuthException("Email service is not configured.", StatusCodes.Status503ServiceUnavailable);
+            }
+
+            _logger.LogInformation("EmailService: sending via SMTP to {To}", to);
+            await SendViaSmtpAsync(to, subject, body);
+        }
+        catch (Exception ex)
         {
-            _logger.LogError("EmailService: no SENDGRID_API_KEY and no EMAIL_HOST configured. Cannot send email.");
-            throw new AuthException("Email service is not configured.", StatusCodes.Status503ServiceUnavailable);
+            _logger.LogError(ex, "EmailService: failed to send email to {To} via configured provider", to);
+            throw;
         }
-
-        _logger.LogInformation("EmailService: sending via SMTP");
-        await SendViaSmtpAsync(to, subject, body);
     }
 
     private async Task SendViaSendGridAsync(string to, string subject, string body)
@@ -91,6 +99,8 @@ public class EmailService : IEmailService
             _logger.LogError("SendGrid email failed with {StatusCode}: {Body}", response.StatusCode, details);
             throw new AuthException("Unable to send email at this time. Please try again later.", StatusCodes.Status503ServiceUnavailable);
         }
+
+        _logger.LogInformation("SendGrid email sent to {To} with status {StatusCode}", to, response.StatusCode);
     }
 
     private async Task SendViaSmtpAsync(string to, string subject, string body)
