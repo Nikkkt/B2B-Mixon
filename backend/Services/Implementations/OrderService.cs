@@ -102,7 +102,7 @@ public class OrderService : IOrderService
         var totalPrice = cart.Items.Sum(ci => ci.PriceSnapshot * ci.Quantity);
         var totalDiscountedPrice = cart.Items.Sum(ci => ci.PriceWithDiscountSnapshot * ci.Quantity);
 
-        await ReserveInventoryAsync(shippingDepartmentId.Value, cart.Items);
+        await ReserveInventoryAsync(shippingDepartmentId, cart.Items);
 
         // Create order
         var order = new Order

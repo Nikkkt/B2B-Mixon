@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using backend.Data;
 using backend.DTOs.Orders;
+using backend.Enums;
 using backend.Models;
 using backend.Services.Helpers;
 using backend.Services.Interfaces;
@@ -360,6 +361,38 @@ public class OrdersCatalogService : IOrdersCatalogService
         return string.IsNullOrWhiteSpace(direction.Title)
             ? direction.Code
             : $"{direction.Code} - {direction.Title}";
+    }
+
+    private async Task<List<Guid>> ResolveAllowedDepartmentsAsync(Guid userId)
+    {
+        var user = await _db.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null)
+        {
+            throw new KeyNotFoundException("User not found.");
+        }
+
+        var roles = user.Roles ?? Array.Empty<int>();
+        if (roles.Contains((int)UserRole.Admin) || roles.Contains((int)UserRole.Manager))
+        {
+            // Empty list = no restriction (all departments)
+            return new List<Guid>();
+        }
+
+        var result = new List<Guid>();
+        if (user.DepartmentShopId.HasValue)
+        {
+            result.Add(user.DepartmentShopId.Value);
+        }
+
+        if (user.DefaultBranchId.HasValue && !result.Contains(user.DefaultBranchId.Value))
+        {
+            result.Add(user.DefaultBranchId.Value);
+        }
+
+        return result;
     }
 
     private sealed record UserAccess(bool HasFullAccess, IReadOnlyCollection<Guid> AllowedGroupIds)
