@@ -14,15 +14,18 @@ public class OrderNotificationService : IOrderNotificationService
     private readonly AppDbContext _db;
     private readonly IConfiguration _configuration;
     private readonly ILogger<OrderNotificationService> _logger;
+    private readonly IEmailService _emailService;
 
     public OrderNotificationService(
         AppDbContext db, 
         IConfiguration configuration,
-        ILogger<OrderNotificationService> logger)
+        ILogger<OrderNotificationService> logger,
+        IEmailService emailService)
     {
         _db = db;
         _configuration = configuration;
         _logger = logger;
+        _emailService = emailService;
     }
 
     public async Task SendOrderNotificationsAsync(Guid orderId)
@@ -172,45 +175,8 @@ public class OrderNotificationService : IOrderNotificationService
 
     private async Task SendEmailAsync(string toEmail, string subject, string body)
     {
-        var smtpHost = _configuration["Email:SmtpHost"];
-        var smtpPort = int.Parse(_configuration["Email:SmtpPort"] ?? "587");
-        var smtpUsername = _configuration["Email:SmtpUsername"];
-        var smtpPassword = _configuration["Email:SmtpPassword"];
-        var fromEmail = _configuration["Email:FromEmail"];
-        var fromName = _configuration["Email:FromName"] ?? "Mixon B2B";
-
-        if (string.IsNullOrWhiteSpace(smtpHost) || string.IsNullOrWhiteSpace(fromEmail))
-        {
-            var message = $"Email configuration is missing. Host or FromEmail is empty. Host='{smtpHost}', FromEmail='{fromEmail}'.";
-            _logger.LogError(message);
-            throw new InvalidOperationException(message);
-        }
-
-        using var client = new SmtpClient(smtpHost, smtpPort)
-        {
-            Credentials = new NetworkCredential(smtpUsername, smtpPassword),
-            EnableSsl = true
-        };
-
-        var mailMessage = new MailMessage
-        {
-            From = new MailAddress(fromEmail, fromName),
-            Subject = subject,
-            Body = body,
-            IsBodyHtml = true
-        };
-
-        mailMessage.To.Add(toEmail);
-
-        try
-        {
-            await client.SendMailAsync(mailMessage);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to send email via SMTP. Host={Host}, Port={Port}, From={From}", smtpHost, smtpPort, fromEmail);
-            throw;
-        }
+        // Delegate to shared email service (supports SendGrid or SMTP via env/config)
+        await _emailService.SendAsync(toEmail, subject, body);
     }
 
     private string GenerateCustomerEmailBody(Order order)
