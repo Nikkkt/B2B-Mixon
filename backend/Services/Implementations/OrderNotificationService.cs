@@ -124,8 +124,8 @@ public class OrderNotificationService : IOrderNotificationService
         try
         {
             // Only branch (shipping point): user's DefaultBranchId first, then order's shipping department (if it is a branch)
-            var shippingDepartmentId = order.CreatedByUser?.DefaultBranchId
-                ?? order.ShippingDepartmentId;
+            var shippingDepartmentId = order.ShippingDepartmentId
+                ?? order.CreatedByUser?.DefaultBranchId;
 
             if (shippingDepartmentId == null)
             {
@@ -136,7 +136,7 @@ public class OrderNotificationService : IOrderNotificationService
             // Get all workers (users) assigned to the same shipping point (branch)
             var departmentWorkers = await _db.Users
                 .Where(u =>
-                    u.DefaultBranchId == shippingDepartmentId &&
+                    (u.DefaultBranchId == shippingDepartmentId || u.DepartmentShopId == shippingDepartmentId) &&
                     !string.IsNullOrWhiteSpace(u.Email) &&
                     u.IsConfirmed &&
                     u.Roles != null && u.Roles.Contains(3))
