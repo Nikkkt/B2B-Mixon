@@ -2234,14 +2234,20 @@ export default function AdminUsers() {
                   {createForm.roles.includes("department") && (
                     <section className="space-y-3">
                       <h4 className="font-semibold text-gray-800">
-                        Магазин підрозділу (для завантаження залишків)
+                        Магазин / філія підрозділу (для завантаження залишків)
                       </h4>
                       <div className="space-y-3">
-                        {shops.map((shop) => (
+                        {availabilityUploadLocations.length === 0 && (
+                          <p className="text-sm text-gray-500">
+                            Немає доступних магазинів чи філій. Спершу додайте точку відвантаження або магазин.
+                          </p>
+                        )}
+
+                        {availabilityUploadLocations.map((location) => (
                           <label
-                            key={`create-shop-${shop.id}`}
+                            key={`create-availability-location-${location.id}`}
                             className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition ${
-                              createForm.departmentShop === shop.id
+                              createForm.departmentShop === location.id
                                 ? "border-indigo-500 bg-indigo-50"
                                 : "border-gray-200 hover:border-indigo-300"
                             }`}
@@ -2249,14 +2255,17 @@ export default function AdminUsers() {
                             <input
                               type="radio"
                               name="createDepartmentShop"
-                              value={shop.id}
-                              checked={createForm.departmentShop === shop.id}
-                              onChange={() => handleCreateDepartmentShop(shop.id)}
+                              value={location.id}
+                              checked={createForm.departmentShop === location.id}
+                              onChange={() => handleCreateDepartmentShop(location.id)}
                               className="mt-1"
                             />
                             <div>
                               <span className="block font-medium text-gray-900">
-                                {shop.name}
+                                {location.name}
+                              </span>
+                              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-gray-500 mt-1">
+                                {location.type === "shop" ? "Магазин" : "Філія"}
                               </span>
                             </div>
                           </label>

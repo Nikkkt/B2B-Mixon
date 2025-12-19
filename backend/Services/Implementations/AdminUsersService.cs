@@ -68,7 +68,9 @@ public class AdminUsersService : IAdminUsersService
             throw new ArgumentException("Specified shipping point does not exist.");
         }
 
-        if (dto.DepartmentShopId.HasValue && !reference.Shops.ContainsKey(dto.DepartmentShopId.Value))
+        if (dto.DepartmentShopId.HasValue
+            && !reference.Branches.ContainsKey(dto.DepartmentShopId.Value)
+            && !reference.Shops.ContainsKey(dto.DepartmentShopId.Value))
         {
             throw new ArgumentException("Specified department shop does not exist.");
         }
@@ -199,7 +201,9 @@ public class AdminUsersService : IAdminUsersService
             throw new ArgumentException("Specified shipping point does not exist.");
         }
 
-        if (dto.DepartmentShopId.HasValue && !reference.Shops.ContainsKey(dto.DepartmentShopId.Value))
+        if (dto.DepartmentShopId.HasValue
+            && !reference.Branches.ContainsKey(dto.DepartmentShopId.Value)
+            && !reference.Shops.ContainsKey(dto.DepartmentShopId.Value))
         {
             throw new ArgumentException("Specified department shop does not exist.");
         }
@@ -512,7 +516,9 @@ public class AdminUsersService : IAdminUsersService
                 ? shippingPointDto.DisplayName
                 : null,
             DepartmentShopId = user.DepartmentShopId,
-            DepartmentShopName = user.DepartmentShopId.HasValue && reference.Shops.TryGetValue(user.DepartmentShopId.Value, out var shopDto)
+            DepartmentShopName = user.DepartmentShopId.HasValue
+                && (reference.Branches.TryGetValue(user.DepartmentShopId.Value, out var shopDto)
+                    || reference.Shops.TryGetValue(user.DepartmentShopId.Value, out shopDto))
                 ? shopDto.DisplayName
                 : null,
             DiscountProfileId = user.DiscountProfileId,
