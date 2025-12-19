@@ -61,7 +61,9 @@ public class AdminUsersService : IAdminUsersService
             throw new InvalidOperationException("A user with this email already exists.");
         }
 
-        if (dto.ShippingPointId.HasValue && !reference.Branches.ContainsKey(dto.ShippingPointId.Value))
+        if (dto.ShippingPointId.HasValue
+            && !reference.Branches.ContainsKey(dto.ShippingPointId.Value)
+            && !reference.Shops.ContainsKey(dto.ShippingPointId.Value))
         {
             throw new ArgumentException("Specified shipping point does not exist.");
         }
@@ -190,7 +192,9 @@ public class AdminUsersService : IAdminUsersService
             user.Email = email;
         }
 
-        if (dto.ShippingPointId.HasValue && !reference.Branches.ContainsKey(dto.ShippingPointId.Value))
+        if (dto.ShippingPointId.HasValue
+            && !reference.Branches.ContainsKey(dto.ShippingPointId.Value)
+            && !reference.Shops.ContainsKey(dto.ShippingPointId.Value))
         {
             throw new ArgumentException("Specified shipping point does not exist.");
         }
@@ -502,8 +506,10 @@ public class AdminUsersService : IAdminUsersService
             Fax = string.IsNullOrWhiteSpace(user.Fax) ? null : user.Fax,
             Roles = roleStrings,
             ShippingPointId = user.DefaultBranchId,
-            ShippingPointName = user.DefaultBranchId.HasValue && reference.Branches.TryGetValue(user.DefaultBranchId.Value, out var branchDto)
-                ? branchDto.DisplayName
+            ShippingPointName = user.DefaultBranchId.HasValue
+                && (reference.Branches.TryGetValue(user.DefaultBranchId.Value, out var shippingPointDto)
+                    || reference.Shops.TryGetValue(user.DefaultBranchId.Value, out shippingPointDto))
+                ? shippingPointDto.DisplayName
                 : null,
             DepartmentShopId = user.DepartmentShopId,
             DepartmentShopName = user.DepartmentShopId.HasValue && reference.Shops.TryGetValue(user.DepartmentShopId.Value, out var shopDto)

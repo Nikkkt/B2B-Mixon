@@ -699,6 +699,29 @@ export default function AdminUsers() {
     return locations;
   }, [shops, shippingPoints]);
 
+  const shippingPointOptions = useMemo(() => {
+    const seen = new Set();
+    const options = [];
+
+    shippingPoints.forEach((branch) => {
+      if (!branch.id || seen.has(branch.id)) {
+        return;
+      }
+      seen.add(branch.id);
+      options.push({ ...branch, type: "branch" });
+    });
+
+    shops.forEach((shop) => {
+      if (!shop.id || seen.has(shop.id)) {
+        return;
+      }
+      seen.add(shop.id);
+      options.push({ ...shop, type: "shop" });
+    });
+
+    return options;
+  }, [shops, shippingPoints]);
+
   const resolveDiscountProfile = useCallback(
     (id) => {
       if (!id) {
@@ -1494,9 +1517,9 @@ export default function AdminUsers() {
                       Точка відвантаження
                     </h4>
                     <div className="space-y-3">
-                      {shippingPoints.map((point) => (
+                      {shippingPointOptions.map((point) => (
                         <label
-                          key={`create-branch-${point.id}`}
+                          key={`create-shipping-point-${point.id}`}
                           className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition ${
                             createForm.shippingPoint === point.id
                               ? "border-indigo-500 bg-indigo-50"
@@ -1512,7 +1535,12 @@ export default function AdminUsers() {
                             className="mt-1"
                           />
                           <div>
-                            <p className="font-medium text-gray-900">{point.name}</p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-medium text-gray-900">{point.name}</p>
+                              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-gray-500">
+                                {point.type === "shop" ? "Магазин" : "Філія"}
+                              </span>
+                            </div>
                             <p className="text-xs text-gray-500">
                               Клієнт бачитиме залишки саме для цієї точки
                             </p>
@@ -1960,7 +1988,7 @@ export default function AdminUsers() {
                       Точка відвантаження
                     </h4>
                     <div className="space-y-3">
-                      {shippingPoints.map((point) => (
+                      {shippingPointOptions.map((point) => (
                         <label
                           key={point.id}
                           className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition ${
@@ -1978,7 +2006,12 @@ export default function AdminUsers() {
                             className="mt-1"
                           />
                           <div>
-                            <p className="font-medium text-gray-900">{point.name}</p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-medium text-gray-900">{point.name}</p>
+                              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-gray-500">
+                                {point.type === "shop" ? "Магазин" : "Філія"}
+                              </span>
+                            </div>
                             <p className="text-xs text-gray-500">
                               Клієнт бачитиме залишки саме для цієї точки
                             </p>
