@@ -8,8 +8,6 @@ import {
   fetchOrderHistory,
   repeatOrder,
   fetchAvailableUsers,
-  exportOrderHistoryExcel,
-  exportOrderHistoryPdf,
   exportOrderExcel,
   exportOrderPdf,
 } from "../api/orderManagementApi";
@@ -120,15 +118,7 @@ export default function OrderHistory() {
     return [{ value: "my", label: "Мої" }];
   }, [isAdmin, isManager]);
   const [visibilityScope, setVisibilityScope] = useState(scopeOptions[0]?.value ?? "my");
-  const [exporting, setExporting] = useState(null);
   const [userSearch, setUserSearch] = useState("");
-
-  const sharedFilters = {
-    createdByUserId: selectedUserId,
-    visibilityScope,
-    page,
-    pageSize,
-  };
 
   const handleExportOrder = async (order, type) => {
     if (!order?.id) {
@@ -227,12 +217,20 @@ export default function OrderHistory() {
   const handleRepeatOrder = async (order) => {
     try {
       await repeatOrder(order.id);
-      await reloadCart();
-      navigate("/cart");
     } catch (err) {
       console.error("Failed to repeat order:", err);
-      alert("Не вдалося повторити замовлення. Будь ласка, спробуйте пізніше.");
+      const message = err?.message || "Не вдалося повторити замовлення. Будь ласка, спробуйте пізніше.";
+      alert(message);
+      return;
     }
+
+    try {
+      await reloadCart();
+    } catch (err) {
+      console.error("Repeat order succeeded, but cart reload failed:", err);
+    }
+
+    navigate("/cart");
   };
 
   const triggerFileDownload = (blob, filename) => {
@@ -244,29 +242,6 @@ export default function OrderHistory() {
     link.click();
     link.remove();
     setTimeout(() => window.URL.revokeObjectURL(url), 5000);
-  };
-
-  const handleExport = async (type) => {
-    try {
-      setExporting(type);
-      const filters = {
-        ...sharedFilters,
-      };
-
-      const blobData =
-        type === "pdf"
-          ? await exportOrderHistoryPdf(filters)
-          : await exportOrderHistoryExcel(filters);
-      const filename = `order-history-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.${
-        type === "pdf" ? "pdf" : "xlsx"
-      }`;
-      triggerFileDownload(blobData, filename);
-    } catch (error) {
-      console.error(`Failed to export ${type}:`, error);
-      alert(`Не вдалося сформувати ${type.toUpperCase()} файл: ${error.message}`);
-    } finally {
-      setExporting(null);
-    }
   };
 
   const handleUserSelect = (userId) => {
@@ -361,22 +336,6 @@ export default function OrderHistory() {
                   </button>
                 );
               })}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => handleExport("pdf")}
-                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 shadow hover:bg-red-100 transition"
-              >
-                <FaFilePdf /> PDF
-              </button>
-              <button
-                type="button"
-                onClick={() => handleExport("excel")}
-                className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 shadow hover:bg-emerald-100 transition"
-              >
-                <FaFileExcel /> Excel
-              </button>
             </div>
           </div>
           {availableUsers.length > 1 && (
@@ -605,20 +564,6 @@ export default function OrderHistory() {
                             className="flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition"
                           >
                             <FaRedoAlt /> Повторити
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleExportOrder(order, "pdf")}
-                            className="flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 transition"
-                          >
-                            <FaFilePdf /> PDF
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleExportOrder(order, "excel")}
-                            className="flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition"
-                          >
-                            <FaFileExcel /> Excel
                           </button>
                         </div>
                       </td>

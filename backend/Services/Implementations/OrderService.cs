@@ -242,56 +242,7 @@ public class OrderService : IOrderService
 
     public async Task<OrderDto> RepeatOrderAsync(Guid userId, Guid orderId)
     {
-        var originalOrder = await _db.Orders
-            .Include(o => o.CreatedByUser)
-            .Include(o => o.Items)
-                .ThenInclude(oi => oi.Product)
-            .FirstOrDefaultAsync(o => o.Id == orderId);
-
-        if (originalOrder == null)
-        {
-            throw new KeyNotFoundException($"Order with ID {orderId} not found");
-        }
-
-        // Verify access (same logic as GetOrderByIdAsync)
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-        if (user == null)
-        {
-            throw new UnauthorizedAccessException("User not found");
-        }
-
-        var roles = user.Roles ?? Array.Empty<int>();
-        var isAdmin = roles.Contains(2);
-        var isManager = roles.Contains(1);
-        var isDepartment = roles.Contains(3);
-
-        if (!isAdmin)
-        {
-            if (isDepartment)
-            {
-                // Department users can see orders from their department
-                if (originalOrder.CreatedByUser?.DepartmentShopId != user.DepartmentShopId)
-                {
-                    throw new UnauthorizedAccessException("Access denied to this order");
-                }
-            }
-            else if (isManager)
-            {
-                // Managers can see orders from users they manage
-                if (originalOrder.CreatedByUserId != userId && originalOrder.CreatedByUser?.ManagerUserId != userId)
-                {
-                    throw new UnauthorizedAccessException("Access denied to this order");
-                }
-            }
-            else
-            {
-                // Regular users see only their own orders
-                if (originalOrder.CreatedByUserId != userId)
-                {
-                    throw new UnauthorizedAccessException("Access denied to this order");
-                }
-            }
-        }
+        var originalOrder = await GetOrderByIdAsync(userId, orderId);
 
         // Get or create cart
         var cart = await _db.Carts
@@ -306,43 +257,69 @@ public class OrderService : IOrderService
                 UpdatedAt = DateTime.UtcNow
             };
             _db.Carts.Add(cart);
+            await _db.SaveChangesAsync();
+        }
+        else if (cart.Items.Count > 0)
+        {
+            _db.CartItems.RemoveRange(cart.Items);
+            cart.Items.Clear();
+            cart.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
         }
 
-        // Clear existing cart items
-        cart.Items.Clear();
+        var orderLines = originalOrder.Items
+            .Where(item => item.Quantity > 0)
+            .GroupBy(item => item.ProductId)
+            .Select(group => new
+            {
+                ProductId = group.Key,
+                Quantity = group.Sum(x => x.Quantity)
+            })
+            .ToList();
+
+        var productIds = orderLines.Select(item => item.ProductId).ToList();
+        var products = await _db.Products
+            .Where(product => productIds.Contains(product.Id))
+            .Select(product => new
+            {
+                product.Id,
+                product.Price,
+                product.Weight,
+                product.Volume,
+                product.ProductGroupId
+            })
+            .ToDictionaryAsync(product => product.Id);
 
         var discountSnapshot = await _userDiscountService.BuildUserDiscountSnapshotAsync(userId);
 
-        // Add items from original order to cart
-        foreach (var orderItem in originalOrder.Items)
+        foreach (var line in orderLines)
         {
-            // Get current product data
-            var product = await _db.Products.FindAsync(orderItem.ProductId);
-            if (product != null)
+            if (!products.TryGetValue(line.ProductId, out var product))
             {
-                var percent = _userDiscountService.ResolveDiscountPercent(discountSnapshot, product.ProductGroupId);
-                var priceWithDiscount = DiscountMath.ApplyPercent(product.Price, percent);
-
-                var cartItem = new CartItem
-                {
-                    CartId = cart.Id,
-                    ProductId = orderItem.ProductId,
-                    Quantity = orderItem.Quantity,
-                    PriceSnapshot = product.Price,
-                    DiscountPercentSnapshot = percent,
-                    PriceWithDiscountSnapshot = priceWithDiscount,
-                    WeightSnapshot = product.Weight,
-                    VolumeSnapshot = product.Volume,
-                    AddedAt = DateTime.UtcNow
-                };
-                cart.Items.Add(cartItem);
+                continue;
             }
+
+            var percent = _userDiscountService.ResolveDiscountPercent(discountSnapshot, product.ProductGroupId);
+            var priceWithDiscount = DiscountMath.ApplyPercent(product.Price, percent);
+
+            cart.Items.Add(new CartItem
+            {
+                CartId = cart.Id,
+                ProductId = line.ProductId,
+                Quantity = line.Quantity,
+                PriceSnapshot = product.Price,
+                DiscountPercentSnapshot = percent,
+                PriceWithDiscountSnapshot = priceWithDiscount,
+                WeightSnapshot = product.Weight,
+                VolumeSnapshot = product.Volume,
+                AddedAt = DateTime.UtcNow
+            });
         }
 
         cart.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        return await MapToOrderDtoAsync(originalOrder);
+        return originalOrder;
     }
 
     public async Task<List<OrderUserDto>> GetAvailableUsersForFilteringAsync(Guid userId)

@@ -182,6 +182,10 @@ public class OrdersController : ControllerBase
         {
             return Unauthorized(new { error = ex.Message });
         }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpGet("{orderId:guid}/export/excel")]
