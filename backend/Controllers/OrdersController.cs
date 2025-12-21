@@ -184,6 +184,44 @@ public class OrdersController : ControllerBase
         }
     }
 
+    [HttpGet("{orderId:guid}/export/excel")]
+    public async Task<IActionResult> ExportOrderToExcel(Guid orderId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var file = await _orderService.ExportOrderToExcelAsync(userId, orderId);
+            return File(file.Content, file.ContentType, file.FileName);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("{orderId:guid}/export/pdf")]
+    public async Task<IActionResult> ExportOrderToPdf(Guid orderId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var file = await _orderService.ExportOrderToPdfAsync(userId, orderId);
+            return File(file.Content, file.ContentType, file.FileName);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+    }
+
     [HttpGet("available-users")]
     public async Task<ActionResult> GetAvailableUsers()
     {

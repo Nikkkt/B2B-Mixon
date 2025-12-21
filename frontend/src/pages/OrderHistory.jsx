@@ -3,12 +3,15 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { FaEye, FaRedoAlt, FaFilePdf, FaFileExcel, FaSpinner, FaUser } from "react-icons/fa";
 import HomeLayout from "../components/HomeLayout";
 import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext.jsx";
 import {
   fetchOrderHistory,
   repeatOrder,
   fetchAvailableUsers,
   exportOrderHistoryExcel,
   exportOrderHistoryPdf,
+  exportOrderExcel,
+  exportOrderPdf,
 } from "../api/orderManagementApi";
 
 const formatDate = (value) => {
@@ -78,6 +81,7 @@ const resolveUserRole = (user) => {
 
 export default function OrderHistory() {
   const { user } = useAuth();
+  const { reloadCart } = useCart();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -124,6 +128,22 @@ export default function OrderHistory() {
     visibilityScope,
     page,
     pageSize,
+  };
+
+  const handleExportOrder = async (order, type) => {
+    if (!order?.id) {
+      return;
+    }
+
+    try {
+      const blobData = type === "pdf" ? await exportOrderPdf(order.id) : await exportOrderExcel(order.id);
+      const safeOrderNumber = (order.orderNumber || "order").replace(/[^a-zA-Z0-9-_]+/g, "-");
+      const filename = `${safeOrderNumber}.${type === "pdf" ? "pdf" : "xlsx"}`;
+      triggerFileDownload(blobData, filename);
+    } catch (error) {
+      console.error(`Failed to export order ${type}:`, error);
+      alert(`Не вдалося сформувати файл замовлення: ${error.message}`);
+    }
   };
 
   const filteredUsers = useMemo(() => {
@@ -207,6 +227,7 @@ export default function OrderHistory() {
   const handleRepeatOrder = async (order) => {
     try {
       await repeatOrder(order.id);
+      await reloadCart();
       navigate("/cart");
     } catch (err) {
       console.error("Failed to repeat order:", err);
@@ -585,6 +606,20 @@ export default function OrderHistory() {
                           >
                             <FaRedoAlt /> Повторити
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExportOrder(order, "pdf")}
+                            className="flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 transition"
+                          >
+                            <FaFilePdf /> PDF
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExportOrder(order, "excel")}
+                            className="flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition"
+                          >
+                            <FaFileExcel /> Excel
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -669,11 +704,11 @@ export default function OrderHistory() {
                         </span>
                       </div>
                     )}
-                    {selectedOrder.shippingBranch && (
+                    {selectedOrder.shippingDepartment && (
                       <div>
                         <span className="text-gray-500">Точка відправки:</span>{" "}
                         <span className="text-gray-900">
-                          {selectedOrder.shippingBranch.name}
+                          {selectedOrder.shippingDepartment.name}
                         </span>
                       </div>
                     )}
@@ -746,6 +781,20 @@ export default function OrderHistory() {
               </div>
 
               <footer className="px-6 py-4 border-t flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleExportOrder(selectedOrder, "pdf")}
+                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm transition"
+                >
+                  <FaFilePdf /> PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExportOrder(selectedOrder, "excel")}
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm transition"
+                >
+                  <FaFileExcel /> Excel
+                </button>
                 <button
                   type="button"
                   onClick={() => handleRepeatOrder(selectedOrder)}

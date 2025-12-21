@@ -101,6 +101,32 @@ const getBranchLabel = (branch, fallback = "—") =>
   pickReadableValue([branch?.displayName, branch?.name, branch?.code], fallback);
 const normalizeId = (value) => (value ?? "").toString().trim().toLowerCase();
 
+const buildBranchQuantityMap = (product) => {
+  const list = product?.branches ?? product?.Branches;
+  if (Array.isArray(list)) {
+    return new Map(
+      list.map((item) => [
+        normalizeId(
+          item.departmentId ??
+            item.DepartmentId ??
+            item.branchId ??
+            item.BranchId ??
+            item.id ??
+            item.Id
+        ),
+        item.quantity ?? item.Quantity ?? 0,
+      ])
+    );
+  }
+
+  const dict = product?.branchQuantities ?? product?.BranchQuantities;
+  if (dict && typeof dict === "object") {
+    return new Map(Object.entries(dict).map(([key, value]) => [normalizeId(key), value ?? 0]));
+  }
+
+  return new Map();
+};
+
 export default function ViewAvailabilityByGroup() {
   const [directions, setDirections] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -123,10 +149,11 @@ export default function ViewAvailabilityByGroup() {
     label: group.name || group.groupNumber || "—"
   })), [groups]);
 
-  const branches = table?.branches ?? [];
-  const products = table?.products ?? [];
-  const lastUpdatedLabel = table?.lastUpdatedAt
-    ? new Date(table.lastUpdatedAt).toLocaleString("uk-UA", { dateStyle: "short", timeStyle: "short" })
+  const branches = table?.branches ?? table?.Branches ?? [];
+  const products = table?.products ?? table?.Products ?? [];
+  const lastUpdatedAt = table?.lastUpdatedAt ?? table?.LastUpdatedAt;
+  const lastUpdatedLabel = lastUpdatedAt
+    ? new Date(lastUpdatedAt).toLocaleString("uk-UA", { dateStyle: "short", timeStyle: "short" })
     : "";
 
   useEffect(() => {
@@ -277,7 +304,7 @@ export default function ViewAvailabilityByGroup() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 5000);
     } catch (error) {
       setErrorMessage(error?.message || "Не вдалося завантажити файл.");
     } finally {
@@ -293,7 +320,7 @@ export default function ViewAvailabilityByGroup() {
 
   return (
     <HomeLayout>
-      <div className="flex-1 min-w-0 flex flex-col bg-white p-4 md:p-6 rounded-lg shadow-lg border border-gray-100">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col bg-white p-4 md:p-6 rounded-lg shadow-lg border border-gray-100">
         <nav className="text-sm text-blue-700/70 mb-4" aria-label="Breadcrumb">
           <ol className="list-none p-0 inline-flex gap-2 flex-wrap">
             <li className="flex items-center gap-2">
@@ -400,7 +427,7 @@ export default function ViewAvailabilityByGroup() {
           </div>
         </section>
 
-        <section className="flex-1 min-w-0 min-h-0 bg-white/90 rounded-3xl border border-gray-100 shadow-inner p-5">
+        <section className="flex-1 min-w-0 min-h-0 overflow-y-auto bg-white/90 rounded-3xl border border-gray-100 shadow-inner p-5">
           {isLoadingTable ? (
             <p className="text-center text-gray-500">Завантаження товарів...</p>
           ) : products.length > 0 ? (
@@ -417,7 +444,7 @@ export default function ViewAvailabilityByGroup() {
                 <span className="text-xs text-gray-400">Показано філіалів: {branches.length}</span>
               </div>
 
-              <div className="hidden md:block max-w-full overflow-x-auto overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow">
+              <div className="hidden lg:block max-w-full overflow-x-auto overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow">
                 <table className="w-full text-sm align-middle min-w-[1400px]">
                   <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                     <tr>
@@ -438,20 +465,20 @@ export default function ViewAvailabilityByGroup() {
                   </thead>
                   <tbody>
                     {products.map((product, index) => {
-                      const branchQuantities = product.branches ?? product.Branches ?? [];
-                      const quantityMap = new Map((branchQuantities ?? []).map(item => [
-                        normalizeId(item.departmentId ?? item.DepartmentId ?? item.branchId ?? item.BranchId ?? item.id ?? item.Id),
-                        item.quantity ?? item.Quantity ?? 0
-                      ]));
+                      const quantityMap = buildBranchQuantityMap(product);
+                      const productId = product.id ?? product.Id ?? `${index}`;
+                      const productCode = product.code ?? product.Code ?? "—";
+                      const productName = product.name ?? product.Name ?? "—";
+                      const totalQuantity = product.totalQuantity ?? product.TotalQuantity ?? 0;
                       return (
-                        <tr key={product.id} className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50/80"} border-b border-gray-100 transition hover:bg-blue-50/60`}>
+                        <tr key={productId} className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50/80"} border-b border-gray-100 transition hover:bg-blue-50/60`}>
                           <td className="border-r border-gray-100 p-3 text-gray-600 font-semibold">{index + 1}</td>
-                          <td className="border-r border-gray-100 p-3 font-semibold text-gray-900 tracking-wide min-w-[10rem]">{product.code}</td>
-                          <td className="border-r border-gray-100 p-3 text-gray-700 font-medium min-w-[18rem]">{product.name}</td>
+                          <td className="border-r border-gray-100 p-3 font-semibold text-gray-900 tracking-wide min-w-[10rem]">{productCode}</td>
+                          <td className="border-r border-gray-100 p-3 text-gray-700 font-medium min-w-[18rem]">{productName}</td>
                           <td className="border-r border-gray-100 p-3 text-right text-gray-900 font-bold">
                             <span className="inline-flex items-center justify-end gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
                               <span className="h-2 w-2 rounded-full bg-blue-300"></span>
-                              {formatQuantity(product.totalQuantity)}
+                              {formatQuantity(totalQuantity)}
                             </span>
                           </td>
                           {branches.map(branch => {
@@ -473,26 +500,26 @@ export default function ViewAvailabilityByGroup() {
                 </table>
               </div>
 
-              <div className="md:hidden space-y-4 overflow-y-auto">
+              <div className="lg:hidden space-y-4 overflow-y-auto">
                 {products.map((product, index) => {
-                  const branchQuantities = product.branches ?? product.Branches ?? [];
-                  const quantityMap = new Map((branchQuantities ?? []).map(item => [
-                    normalizeId(item.departmentId ?? item.DepartmentId ?? item.branchId ?? item.BranchId ?? item.id ?? item.Id),
-                    item.quantity ?? item.Quantity ?? 0
-                  ]));
+                  const quantityMap = buildBranchQuantityMap(product);
+                  const productId = product.id ?? product.Id ?? `${index}`;
+                  const productCode = product.code ?? product.Code ?? "—";
+                  const productName = product.name ?? product.Name ?? "—";
+                  const totalQuantity = product.totalQuantity ?? product.TotalQuantity ?? 0;
                   return (
-                    <div key={product.id} className="rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-gray-50 p-4 shadow space-y-3">
+                    <div key={productId} className="rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-gray-50 p-4 shadow space-y-3">
                       <div className="flex justify-between items-start">
                         <div>
                           <span className="text-[11px] uppercase tracking-[0.2em] text-gray-500">Товар</span>
-                          <h3 className="font-semibold text-gray-900">{product.name}</h3>
+                          <h3 className="font-semibold text-gray-900">{productName}</h3>
                         </div>
                         <span className="inline-flex h-8 min-w-[2rem] items-center justify-center rounded-xl bg-gray-100 text-gray-700 text-xs font-semibold">№ {index + 1}</span>
                       </div>
-                      <p className="text-sm text-gray-500">Код: <span className="font-semibold text-gray-900">{product.code}</span></p>
+                      <p className="text-sm text-gray-500">Код: <span className="font-semibold text-gray-900">{productCode}</span></p>
                       <div>
                         <span className="text-xs uppercase tracking-wide text-gray-400">Загальна кількість</span>
-                        <p className="text-2xl font-bold text-gray-900">{formatQuantity(product.totalQuantity)}</p>
+                        <p className="text-2xl font-bold text-gray-900">{formatQuantity(totalQuantity)}</p>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         {branches.map(branch => {

@@ -61,6 +61,20 @@ export const exportOrderHistoryPdf = async (filters = {}) => {
   return response.data;
 };
 
+export const exportOrderExcel = async (orderId) => {
+  const response = await api.get(`/orders/${orderId}/export/excel`, {
+    responseType: "blob",
+  });
+  return response.data;
+};
+
+export const exportOrderPdf = async (orderId) => {
+  const response = await api.get(`/orders/${orderId}/export/pdf`, {
+    responseType: "blob",
+  });
+  return response.data;
+};
+
 export const fetchOrderById = async (orderId) => {
   const { data } = await api.get(`/orders/${orderId}`);
   return data;

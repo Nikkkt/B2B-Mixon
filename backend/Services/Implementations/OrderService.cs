@@ -1,4 +1,5 @@
 using backend.Data;
+using backend.DTOs.Common;
 using backend.DTOs.OrderManagement;
 using backend.Enums;
 using backend.Models;
@@ -242,6 +243,7 @@ public class OrderService : IOrderService
     public async Task<OrderDto> RepeatOrderAsync(Guid userId, Guid orderId)
     {
         var originalOrder = await _db.Orders
+            .Include(o => o.CreatedByUser)
             .Include(o => o.Items)
                 .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(o => o.Id == orderId);
@@ -252,9 +254,43 @@ public class OrderService : IOrderService
         }
 
         // Verify access (same logic as GetOrderByIdAsync)
-        if (originalOrder.CreatedByUserId != userId)
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null)
         {
-            throw new UnauthorizedAccessException("Can only repeat your own orders");
+            throw new UnauthorizedAccessException("User not found");
+        }
+
+        var roles = user.Roles ?? Array.Empty<int>();
+        var isAdmin = roles.Contains(2);
+        var isManager = roles.Contains(1);
+        var isDepartment = roles.Contains(3);
+
+        if (!isAdmin)
+        {
+            if (isDepartment)
+            {
+                // Department users can see orders from their department
+                if (originalOrder.CreatedByUser?.DepartmentShopId != user.DepartmentShopId)
+                {
+                    throw new UnauthorizedAccessException("Access denied to this order");
+                }
+            }
+            else if (isManager)
+            {
+                // Managers can see orders from users they manage
+                if (originalOrder.CreatedByUserId != userId && originalOrder.CreatedByUser?.ManagerUserId != userId)
+                {
+                    throw new UnauthorizedAccessException("Access denied to this order");
+                }
+            }
+            else
+            {
+                // Regular users see only their own orders
+                if (originalOrder.CreatedByUserId != userId)
+                {
+                    throw new UnauthorizedAccessException("Access denied to this order");
+                }
+            }
         }
 
         // Get or create cart
@@ -471,6 +507,181 @@ public class OrderService : IOrderService
         using var stream = new MemoryStream();
         document.GeneratePdf(stream);
         return stream.ToArray();
+    }
+
+    public async Task<FileDownloadDto> ExportOrderToExcelAsync(Guid userId, Guid orderId)
+    {
+        var order = await GetOrderByIdAsync(userId, orderId);
+
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Order");
+
+        worksheet.Cell(1, 1).Value = "Номер";
+        worksheet.Cell(1, 2).Value = order.OrderNumber;
+
+        worksheet.Cell(2, 1).Value = "Дата";
+        worksheet.Cell(2, 2).Value = order.CreatedAt.ToLocalTime();
+
+        worksheet.Cell(3, 1).Value = "Клієнт";
+        worksheet.Cell(3, 2).Value = order.Customer?.Name ?? "—";
+
+        worksheet.Cell(4, 1).Value = "Створив";
+        worksheet.Cell(4, 2).Value = order.CreatedBy?.Email ?? order.CreatedBy?.FullName ?? "—";
+
+        worksheet.Cell(5, 1).Value = "Оплата";
+        worksheet.Cell(5, 2).Value = order.PaymentMethod;
+
+        worksheet.Cell(6, 1).Value = "Тип";
+        worksheet.Cell(6, 2).Value = order.OrderType;
+
+        worksheet.Cell(7, 1).Value = "Коментар";
+        worksheet.Cell(7, 2).Value = order.Comment ?? "—";
+
+        worksheet.Cell(8, 1).Value = "Точка відвантаження";
+        worksheet.Cell(8, 2).Value = order.ShippingDepartment?.Name ?? "—";
+
+        var headerRow = 10;
+
+        worksheet.Cell(headerRow, 1).Value = "Код";
+        worksheet.Cell(headerRow, 2).Value = "Найменування";
+        worksheet.Cell(headerRow, 3).Value = "Ціна";
+        worksheet.Cell(headerRow, 4).Value = "Знижка %";
+        worksheet.Cell(headerRow, 5).Value = "Ціна зі знижкою";
+        worksheet.Cell(headerRow, 6).Value = "К-сть";
+        worksheet.Cell(headerRow, 7).Value = "Сума";
+
+        for (var col = 1; col <= 7; col++)
+        {
+            worksheet.Cell(headerRow, col).Style.Font.SetBold();
+            worksheet.Cell(headerRow, col).Style.Fill.SetBackgroundColor(XLColor.FromHtml("#EFF6FF"));
+        }
+
+        var row = headerRow + 1;
+        foreach (var item in order.Items)
+        {
+            worksheet.Cell(row, 1).Value = item.ProductCode;
+            worksheet.Cell(row, 2).Value = item.ProductName;
+            worksheet.Cell(row, 3).Value = item.Price;
+            worksheet.Cell(row, 4).Value = item.DiscountPercent;
+            worksheet.Cell(row, 5).Value = item.PriceWithDiscount;
+            worksheet.Cell(row, 6).Value = item.Quantity;
+            worksheet.Cell(row, 7).Value = item.LineTotal;
+            row++;
+        }
+
+        row += 1;
+
+        worksheet.Cell(row, 5).Value = "Підсумок";
+        worksheet.Cell(row, 6).Value = order.Totals.TotalQuantity;
+        worksheet.Cell(row, 7).Value = order.Totals.TotalDiscountedPrice;
+        worksheet.Cell(row, 5).Style.Font.SetBold();
+        worksheet.Cell(row, 7).Style.Font.SetBold();
+
+        worksheet.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+
+        return new FileDownloadDto
+        {
+            FileName = $"order-{order.OrderNumber}-{DateTime.UtcNow:yyyyMMddHHmm}.xlsx",
+            ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            Content = stream.ToArray()
+        };
+    }
+
+    public async Task<FileDownloadDto> ExportOrderToPdfAsync(Guid userId, Guid orderId)
+    {
+        EnsureQuestPdfLicense();
+        var order = await GetOrderByIdAsync(userId, orderId);
+
+        var document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Margin(30);
+                page.DefaultTextStyle(x => x.FontSize(10));
+
+                page.Header()
+                    .Column(column =>
+                    {
+                        column.Item().Text($"Замовлення № {order.OrderNumber}").FontSize(16).SemiBold();
+                        column.Item().Text($"Дата: {order.CreatedAt.ToLocalTime():dd.MM.yyyy HH:mm}");
+                        column.Item().Text($"Клієнт: {order.Customer?.Name ?? "—"}");
+                        column.Item().Text($"Оплата: {order.PaymentMethod} · Тип: {order.OrderType}");
+                        if (!string.IsNullOrWhiteSpace(order.ShippingDepartment?.Name))
+                        {
+                            column.Item().Text($"Точка відвантаження: {order.ShippingDepartment.Name}");
+                        }
+                        if (!string.IsNullOrWhiteSpace(order.Comment))
+                        {
+                            column.Item().Text($"Коментар: {order.Comment}");
+                        }
+                    });
+
+                page.Content()
+                    .PaddingVertical(10)
+                    .Column(column =>
+                    {
+                        column.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.ConstantColumn(80);
+                                columns.RelativeColumn();
+                                columns.ConstantColumn(60);
+                                columns.ConstantColumn(60);
+                                columns.ConstantColumn(70);
+                            });
+
+                            void HeaderCell(IContainer cell, string text) => cell
+                                .Background(Colors.Grey.Lighten3)
+                                .Padding(4)
+                                .Text(text)
+                                .FontSize(10)
+                                .SemiBold();
+
+                            void BodyCell(IContainer cell, string text) => cell
+                                .BorderBottom(1)
+                                .BorderColor(Colors.Grey.Lighten4)
+                                .Padding(4)
+                                .Text(text)
+                                .FontSize(9);
+
+                            table.Header(header =>
+                            {
+                                HeaderCell(header.Cell(), "Код");
+                                HeaderCell(header.Cell(), "Найменування");
+                                HeaderCell(header.Cell(), "Ціна");
+                                HeaderCell(header.Cell(), "К-сть");
+                                HeaderCell(header.Cell(), "Сума");
+                            });
+
+                            foreach (var item in order.Items)
+                            {
+                                BodyCell(table.Cell(), item.ProductCode ?? "—");
+                                BodyCell(table.Cell(), item.ProductName ?? "—");
+                                BodyCell(table.Cell(), item.PriceWithDiscount.ToString("0.00"));
+                                BodyCell(table.Cell(), item.Quantity.ToString("0.##"));
+                                BodyCell(table.Cell(), item.LineTotal.ToString("0.00"));
+                            }
+                        });
+
+                        column.Item().PaddingTop(8).AlignRight().Text($"Разом: {order.Totals.TotalQuantity:0.##} · {order.Totals.TotalDiscountedPrice:0.00}")
+                            .SemiBold();
+                    });
+            });
+        });
+
+        using var stream = new MemoryStream();
+        document.GeneratePdf(stream);
+
+        return new FileDownloadDto
+        {
+            FileName = $"order-{order.OrderNumber}-{DateTime.UtcNow:yyyyMMddHHmm}.pdf",
+            ContentType = "application/pdf",
+            Content = stream.ToArray()
+        };
     }
 
     private async Task<(List<Order> orders, int totalCount)> QueryOrderHistoryAsync(Guid userId, OrderHistoryFilterDto filter, bool applyPagination)

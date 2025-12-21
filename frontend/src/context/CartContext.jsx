@@ -19,29 +19,32 @@ export function CartProvider({ children }) {
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState("");
 
+  const reloadCart = useCallback(async () => {
+    if (!user) {
+      setItems([]);
+      setLoading(false);
+      return null;
+    }
+
+    try {
+      setLoading(true);
+      const cart = await cartApi.fetchCart();
+      console.log("Loaded cart from backend:", cart);
+      setItems(cart.items || []);
+      return cart;
+    } catch (error) {
+      console.error("Failed to load cart:", error);
+      setItems([]);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
   // Load cart from backend on mount/user change
   useEffect(() => {
-    const loadCart = async () => {
-      if (!user) {
-        setItems([]);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const cart = await cartApi.fetchCart();
-        console.log("Loaded cart from backend:", cart);
-        setItems(cart.items || []);
-      } catch (error) {
-        console.error("Failed to load cart:", error);
-        setItems([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadCart();
-  }, [user]);
+    reloadCart().catch(() => undefined);
+  }, [reloadCart]);
 
   useEffect(() => {
     let isMounted = true;
@@ -223,6 +226,8 @@ export function CartProvider({ children }) {
     // Cart items
     items,
     loading,
+
+    reloadCart,
 
     // Cart operations
     addItem,
