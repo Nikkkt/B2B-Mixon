@@ -605,7 +605,8 @@ public class AvailabilityService : IAvailabilityService
                 Code = ctx.Code,
                 Name = ctx.Name,
                 DisplayName = ctx.DisplayName,
-                Quantity = quantity
+                Quantity = quantity,
+                LastUpdatedAt = stock?.LastUpdatedAt
             });
         }
 

@@ -12,6 +12,21 @@ const formatQuantity = (value) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
+const formatUpdateDateTime = (value) => {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleString("uk-UA", {
+    dateStyle: "short",
+    timeStyle: "short"
+  });
+};
 const getBranchLabel = (branch, fallback = "—") =>
   pickReadableValue([branch?.displayName, branch?.name, branch?.code], fallback);
 const DEFAULT_INFO_MESSAGE =
@@ -340,7 +355,7 @@ export default function ViewAvailabilityByCode() {
                         <tr className="text-[11px] uppercase tracking-[0.4em] text-gray-400">
                           <th className="sticky top-0 bg-white p-3 border-b border-gray-100 text-left">№</th>
                           <th className="sticky top-0 bg-white p-3 border-b border-gray-100 text-left">Підрозділ</th>
-                          <th className="sticky top-0 bg-white p-3 border-b border-gray-100 text-left">Код</th>
+                          <th className="sticky top-0 bg-white p-3 border-b border-gray-100 text-left">Дата</th>
                           <th className="sticky top-0 bg-white p-3 border-b border-gray-100 text-right">Кількість</th>
                         </tr>
                       </thead>
@@ -349,7 +364,7 @@ export default function ViewAvailabilityByCode() {
                           <tr key={branch.branchId} className="transition hover:bg-blue-50/40">
                             <td className="p-3 text-gray-500 font-semibold border-b border-r border-gray-100">{index + 1}</td>
                             <td className="p-3 text-gray-900 font-medium border-b border-r border-gray-100">{getBranchLabel(branch)}</td>
-                            <td className="p-3 text-gray-500 border-b border-r border-gray-100">{branch.code || "—"}</td>
+                            <td className="p-3 text-gray-500 border-b border-r border-gray-100">{formatUpdateDateTime(branch.lastUpdatedAt)}</td>
                             <td className="p-3 text-right text-gray-900 font-semibold border-b border-gray-100">{formatQuantity(branch.quantity)}</td>
                           </tr>
                         ))}
@@ -364,7 +379,7 @@ export default function ViewAvailabilityByCode() {
                           <p className="text-sm font-semibold text-gray-900">{getBranchLabel(branch)}</p>
                           <span className="text-xs text-gray-400">№ {index + 1}</span>
                         </div>
-                        <p className="text-xs text-gray-500">Код: {branch.code || "—"}</p>
+                        <p className="text-xs text-gray-500">Дата: {formatUpdateDateTime(branch.lastUpdatedAt)}</p>
                         <p className="text-lg font-bold text-gray-900">{formatQuantity(branch.quantity)}</p>
                       </div>
                     ))}
