@@ -390,7 +390,9 @@ public class AvailabilityService : IAvailabilityService
 
         foreach (var branch in table.Branches)
         {
-            worksheet.Cell(headerRow, column++).Value = branch.DisplayName;
+            worksheet.Cell(headerRow, column++).Value = string.IsNullOrWhiteSpace(branch.Name)
+                ? branch.DisplayName
+                : branch.Name;
         }
 
         var currentRow = headerRow + 1;
@@ -453,11 +455,11 @@ public class AvailabilityService : IAvailabilityService
                         {
                             columns.ConstantColumn(25);
                             columns.ConstantColumn(80);
-                            columns.RelativeColumn();
+                            columns.RelativeColumn(3);
                             columns.ConstantColumn(50);
                             foreach (var _ in table.Branches)
                             {
-                                columns.ConstantColumn(60);
+                                columns.RelativeColumn();
                             }
                         });
 
@@ -470,7 +472,9 @@ public class AvailabilityService : IAvailabilityService
 
                             foreach (var branch in table.Branches)
                             {
-                                header.Cell().Element(HeaderCell).Text(branch.DisplayName);
+                                header.Cell().Element(HeaderCell).Text(string.IsNullOrWhiteSpace(branch.Name)
+                                    ? branch.DisplayName
+                                    : branch.Name);
                             }
                         });
 

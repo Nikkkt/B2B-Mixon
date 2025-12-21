@@ -262,7 +262,7 @@ export default function ViewAvailabilityByGroup() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url);
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
     } catch (error) {
       setErrorMessage(error?.message || "Не вдалося завантажити файл.");
     } finally {
@@ -278,7 +278,7 @@ export default function ViewAvailabilityByGroup() {
 
   return (
     <HomeLayout>
-      <div className="flex-1 flex flex-col bg-white p-4 md:p-6 rounded-lg shadow-lg border border-gray-100">
+      <div className="flex-1 min-w-0 flex flex-col bg-white p-4 md:p-6 rounded-lg shadow-lg border border-gray-100">
         <nav className="text-sm text-blue-700/70 mb-4" aria-label="Breadcrumb">
           <ol className="list-none p-0 inline-flex gap-2 flex-wrap">
             <li className="flex items-center gap-2">
@@ -367,7 +367,7 @@ export default function ViewAvailabilityByGroup() {
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
                 <FaWarehouse />
               </span>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <p className="text-xs uppercase tracking-wide text-gray-400">Направлення</p>
                 <p className="text-sm font-semibold text-gray-900 truncate">{directionOptions.find(opt => opt.value === selectedDirection)?.label || "Не обрано"}</p>
               </div>
@@ -377,7 +377,7 @@ export default function ViewAvailabilityByGroup() {
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
                 <FaLayerGroup />
               </span>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <p className="text-xs uppercase tracking-wide text-gray-400">Група</p>
                 <p className="text-sm font-semibold text-gray-900 truncate">{groupOptions.find(opt => opt.value === selectedGroup)?.label || "Не обрано"}</p>
               </div>
@@ -385,7 +385,7 @@ export default function ViewAvailabilityByGroup() {
           </div>
         </section>
 
-        <section className="flex-1 min-h-0 bg-white/90 rounded-3xl border border-gray-100 shadow-inner p-5">
+        <section className="flex-1 min-w-0 min-h-0 bg-white/90 rounded-3xl border border-gray-100 shadow-inner p-5">
           {isLoadingTable ? (
             <p className="text-center text-gray-500">Завантаження товарів...</p>
           ) : products.length > 0 ? (
@@ -402,7 +402,7 @@ export default function ViewAvailabilityByGroup() {
                 <span className="text-xs text-gray-400">Показано філіалів: {branches.length}</span>
               </div>
 
-              <div className="hidden md:block overflow-x-auto overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow">
+              <div className="hidden md:block max-w-full overflow-x-auto overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow">
                 <table className="w-full text-sm align-middle min-w-[1400px]">
                   <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                     <tr>
@@ -420,7 +420,7 @@ export default function ViewAvailabilityByGroup() {
                   </thead>
                   <tbody>
                     {products.map((product, index) => {
-                      const quantityMap = new Map((product.branches ?? []).map(item => [item.branchId, item.quantity]));
+                      const quantityMap = new Map((product.branches ?? []).map(item => [item.departmentId ?? item.branchId, item.quantity]));
                       return (
                         <tr key={product.id} className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50/80"} border-b border-gray-100 transition hover:bg-blue-50/60`}>
                           <td className="border-r border-gray-100 p-3 text-gray-600 font-semibold">{index + 1}</td>
@@ -452,7 +452,7 @@ export default function ViewAvailabilityByGroup() {
 
               <div className="md:hidden space-y-4 overflow-y-auto">
                 {products.map((product, index) => {
-                  const quantityMap = new Map((product.branches ?? []).map(item => [item.branchId, item.quantity]));
+                  const quantityMap = new Map((product.branches ?? []).map(item => [item.departmentId ?? item.branchId, item.quantity]));
                   return (
                     <div key={product.id} className="rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-gray-50 p-4 shadow space-y-3">
                       <div className="flex justify-between items-start">
@@ -472,7 +472,7 @@ export default function ViewAvailabilityByGroup() {
                           const branchQty = quantityMap.get(branch.id) ?? 0;
                           return (
                             <div key={branch.id} className="rounded-xl border border-gray-100 bg-white px-3 py-2">
-                              <td className="p-3 text-gray-900 font-medium border-b border-r border-gray-100">{getBranchLabel(branch)}</td>
+                              <p className="text-xs font-medium text-gray-900 break-words">{getBranchLabel(branch)}</p>
                               <p className={`text-base font-semibold ${branchQty ? "text-gray-900" : "text-gray-400"}`}>{formatQuantity(branchQty)}</p>
                             </div>
                           );
