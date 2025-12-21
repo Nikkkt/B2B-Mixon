@@ -361,7 +361,7 @@ export default function ViewAvailabilityByCode() {
                       </thead>
                       <tbody>
                         {branches.map((branch, index) => (
-                          <tr key={branch.branchId} className="transition hover:bg-blue-50/40">
+                          <tr key={branch.departmentId ?? branch.branchId ?? index} className="transition hover:bg-blue-50/40">
                             <td className="p-3 text-gray-500 font-semibold border-b border-r border-gray-100">{index + 1}</td>
                             <td className="p-3 text-gray-900 font-medium border-b border-r border-gray-100">{getBranchLabel(branch)}</td>
                             <td className="p-3 text-gray-500 border-b border-r border-gray-100">{formatUpdateDateTime(branch.lastUpdatedAt)}</td>
@@ -374,7 +374,7 @@ export default function ViewAvailabilityByCode() {
 
                   <div className="md:hidden space-y-3">
                     {branches.map((branch, index) => (
-                      <div key={branch.branchId} className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow">
+                      <div key={branch.departmentId ?? branch.branchId ?? index} className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow">
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-semibold text-gray-900">{getBranchLabel(branch)}</p>
                           <span className="text-xs text-gray-400">№ {index + 1}</span>
