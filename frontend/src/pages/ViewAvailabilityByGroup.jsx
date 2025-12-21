@@ -13,9 +13,16 @@ import { pickReadableValue } from "../utils/displayName";
 import { sortGroupsByNumber } from "../utils/productGroups";
 
 const customSelectStyles = {
+  container: (provided) => ({
+    ...provided,
+    width: "100%",
+    minWidth: 0
+  }),
   control: (provided, state) => ({
     ...provided,
     minHeight: "46px",
+    minWidth: 0,
+    width: "100%",
     borderRadius: "0.85rem",
     border: state.isFocused ? "2px solid rgb(59 130 246)" : "1px solid rgba(59, 130, 246, 0.35)",
     background: "linear-gradient(135deg, rgba(239,246,255,0.95), rgba(219,234,254,0.8))",
@@ -28,7 +35,10 @@ const customSelectStyles = {
   }),
   valueContainer: (provided) => ({
     ...provided,
-    padding: "0.25rem 0.75rem"
+    padding: "0.25rem 0.75rem",
+    minWidth: 0,
+    overflow: "hidden",
+    flexWrap: "nowrap"
   }),
   input: (provided) => ({
     ...provided,
@@ -44,7 +54,11 @@ const customSelectStyles = {
   singleValue: (provided) => ({
     ...provided,
     color: "rgb(15, 23, 42)",
-    fontWeight: 600
+    fontWeight: 600,
+    maxWidth: "100%",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap"
   }),
   option: (provided, state) => ({
     ...provided,
@@ -85,6 +99,7 @@ const getDirectionLabel = (direction, fallback = "—") =>
   pickReadableValue([direction?.displayName, direction?.name, direction?.code], fallback);
 const getBranchLabel = (branch, fallback = "—") =>
   pickReadableValue([branch?.displayName, branch?.name, branch?.code], fallback);
+const normalizeId = (value) => (value ?? "").toString().trim().toLowerCase();
 
 export default function ViewAvailabilityByGroup() {
   const [directions, setDirections] = useState([]);
@@ -306,7 +321,7 @@ export default function ViewAvailabilityByGroup() {
         )}
 
         <section className="grid gap-6 lg:grid-cols-[3fr_2fr] mb-8">
-          <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/60 via-white to-blue-50 p-5 shadow-inner">
+          <div className="min-w-0 max-w-full rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/60 via-white to-blue-50 p-5 shadow-inner">
             <div className="mb-5 flex items-center gap-3 text-blue-900">
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
                 <FaClipboardList />
@@ -317,7 +332,7 @@ export default function ViewAvailabilityByGroup() {
               </div>
             </div>
 
-            <form className="space-y-4">
+            <form className="space-y-4 min-w-0">
               <div>
                 <label htmlFor="direction" className="block text-sm font-medium text-gray-700 mb-2">Товарне направлення *</label>
                 <Select
@@ -352,7 +367,7 @@ export default function ViewAvailabilityByGroup() {
             </form>
           </div>
 
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5 shadow-inner flex flex-col gap-4 space-y-2">
+          <div className="min-w-0 max-w-full rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5 shadow-inner flex flex-col gap-4 space-y-2">
             <div className="flex items-center gap-3 text-emerald-900">
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
                 <FaProjectDiagram />
@@ -410,17 +425,24 @@ export default function ViewAvailabilityByGroup() {
                       <th className="sticky top-0 border-b border-r border-gray-100 p-3 text-left text-[11px] font-semibold tracking-[0.08em] text-gray-600 uppercase min-w-[10rem]">Код</th>
                       <th className="sticky top-0 border-b border-r border-gray-100 p-3 text-left text-[11px] font-semibold tracking-[0.08em] text-gray-600 uppercase min-w-[18rem]">Назва</th>
                       <th className="sticky top-0 border-b border-r border-gray-100 p-3 text-right text-[11px] font-semibold tracking-[0.08em] text-gray-600 uppercase">Загалом</th>
-                      {branches.map(branch => (
-                        <th key={branch.id} className="sticky top-0 border-b border-r border-gray-100 p-3 text-right text-[11px] font-semibold tracking-[0.05em] text-gray-600 uppercase whitespace-nowrap last:border-r-0">
-                          <span className="block text-[10px] text-gray-400">Філіал</span>
-                          {getBranchLabel(branch)}
-                        </th>
-                      ))}
+                      {branches.map(branch => {
+                        const branchKey = normalizeId(branch.id ?? branch.Id ?? branch.departmentId ?? branch.DepartmentId ?? branch.branchId ?? branch.BranchId);
+                        return (
+                          <th key={branchKey} className="sticky top-0 border-b border-r border-gray-100 p-3 text-right text-[11px] font-semibold tracking-[0.05em] text-gray-600 uppercase whitespace-nowrap last:border-r-0">
+                            <span className="block text-[10px] text-gray-400">Філіал</span>
+                            {getBranchLabel(branch)}
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
                     {products.map((product, index) => {
-                      const quantityMap = new Map((product.branches ?? []).map(item => [item.departmentId ?? item.branchId, item.quantity]));
+                      const branchQuantities = product.branches ?? product.Branches ?? [];
+                      const quantityMap = new Map((branchQuantities ?? []).map(item => [
+                        normalizeId(item.departmentId ?? item.DepartmentId ?? item.branchId ?? item.BranchId ?? item.id ?? item.Id),
+                        item.quantity ?? item.Quantity ?? 0
+                      ]));
                       return (
                         <tr key={product.id} className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50/80"} border-b border-gray-100 transition hover:bg-blue-50/60`}>
                           <td className="border-r border-gray-100 p-3 text-gray-600 font-semibold">{index + 1}</td>
@@ -433,10 +455,11 @@ export default function ViewAvailabilityByGroup() {
                             </span>
                           </td>
                           {branches.map(branch => {
-                            const branchQty = quantityMap.get(branch.id) ?? 0;
-                            const isZero = !branchQty;
+                            const branchKey = normalizeId(branch.id ?? branch.Id ?? branch.departmentId ?? branch.DepartmentId ?? branch.branchId ?? branch.BranchId);
+                            const branchQty = quantityMap.get(branchKey) ?? 0;
+                            const isZero = Number(branchQty ?? 0) === 0;
                             return (
-                              <td key={branch.id} className="p-3 text-right border-r border-gray-100 last:border-r-0">
+                              <td key={branchKey} className="p-3 text-right border-r border-gray-100 last:border-r-0">
                                 <span className={`inline-flex items-center justify-end gap-2 rounded-full border px-2 py-0.5 text-xs font-semibold ${isZero ? "border-gray-100 text-gray-400" : "border-blue-100 text-blue-800"}`}>
                                   {formatQuantity(branchQty)}
                                 </span>
@@ -452,7 +475,11 @@ export default function ViewAvailabilityByGroup() {
 
               <div className="md:hidden space-y-4 overflow-y-auto">
                 {products.map((product, index) => {
-                  const quantityMap = new Map((product.branches ?? []).map(item => [item.departmentId ?? item.branchId, item.quantity]));
+                  const branchQuantities = product.branches ?? product.Branches ?? [];
+                  const quantityMap = new Map((branchQuantities ?? []).map(item => [
+                    normalizeId(item.departmentId ?? item.DepartmentId ?? item.branchId ?? item.BranchId ?? item.id ?? item.Id),
+                    item.quantity ?? item.Quantity ?? 0
+                  ]));
                   return (
                     <div key={product.id} className="rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-gray-50 p-4 shadow space-y-3">
                       <div className="flex justify-between items-start">
@@ -469,9 +496,10 @@ export default function ViewAvailabilityByGroup() {
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         {branches.map(branch => {
-                          const branchQty = quantityMap.get(branch.id) ?? 0;
+                          const branchKey = normalizeId(branch.id ?? branch.Id ?? branch.departmentId ?? branch.DepartmentId ?? branch.branchId ?? branch.BranchId);
+                          const branchQty = quantityMap.get(branchKey) ?? 0;
                           return (
-                            <div key={branch.id} className="rounded-xl border border-gray-100 bg-white px-3 py-2">
+                            <div key={branchKey} className="rounded-xl border border-gray-100 bg-white px-3 py-2">
                               <p className="text-xs font-medium text-gray-900 break-words">{getBranchLabel(branch)}</p>
                               <p className={`text-base font-semibold ${branchQty ? "text-gray-900" : "text-gray-400"}`}>{formatQuantity(branchQty)}</p>
                             </div>
