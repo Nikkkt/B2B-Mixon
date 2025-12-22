@@ -121,9 +121,11 @@ const mapUserToViewModel = (user) => {
     ),
   }));
 
-  const accessCategories = user.hasFullAccess
-    ? ["all"]
-    : (user.productGroupAccessIds ?? []).map((id) => String(id));
+  const productGroupAccessIds = (user.productGroupAccessIds ?? []).map((id) =>
+    String(id)
+  );
+
+  const accessCategories = user.hasFullAccess ? ["all"] : productGroupAccessIds;
 
   const normalizedRoles = normalizeRoles(user.roles ?? user.role);
 
@@ -157,6 +159,7 @@ const mapUserToViewModel = (user) => {
     defaultDiscounts,
     specialDiscounts,
     accessCategories,
+    productGroupAccessIds,
     registrationDate: user.createdAt,
     lastContact: user.lastContact || "",
     isNew: Boolean(user.isNew),
