@@ -246,7 +246,6 @@ public class OrderService : IOrderService
 
         // Get or create cart
         var cart = await _db.Carts
-            .Include(c => c.Items)
             .FirstOrDefaultAsync(c => c.UserId == userId);
 
         if (cart == null)
@@ -259,13 +258,10 @@ public class OrderService : IOrderService
             _db.Carts.Add(cart);
             await _db.SaveChangesAsync();
         }
-        else if (cart.Items.Count > 0)
-        {
-            _db.CartItems.RemoveRange(cart.Items);
-            cart.Items.Clear();
-            cart.UpdatedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync();
-        }
+
+        await _db.CartItems
+            .Where(item => item.CartId == cart.Id)
+            .ExecuteDeleteAsync();
 
         var orderLines = originalOrder.Items
             .Where(item => item.Quantity > 0)
@@ -302,7 +298,7 @@ public class OrderService : IOrderService
             var percent = _userDiscountService.ResolveDiscountPercent(discountSnapshot, product.ProductGroupId);
             var priceWithDiscount = DiscountMath.ApplyPercent(product.Price, percent);
 
-            cart.Items.Add(new CartItem
+            _db.CartItems.Add(new CartItem
             {
                 CartId = cart.Id,
                 ProductId = line.ProductId,
