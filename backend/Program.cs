@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using DotNetEnv;
 using System;
+using System.Linq;
 
 // Load .env before the host builds configuration so values are available to providers
 Env.Load();
@@ -14,7 +15,10 @@ Env.Load();
 var builder = WebApplication.CreateBuilder(args);
 
 var corsOrigins = Environment.GetEnvironmentVariable("CORS_ORIGINS")?
-    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    .Select(origin => origin.Trim().Trim('"', '\'').TrimEnd('/'))
+    .Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .ToArray();
 
 // DB
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -44,7 +48,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("FrontendPolicy", policy =>
     {
         var origins = corsOrigins?.Length > 0
-            ? corsOrigins
+            ? corsOrigins.Append("https://b2-b-mixon.vercel.app").Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
             : new[] { "https://b2-b-mixon.vercel.app" };
 
         policy.WithOrigins(origins)
