@@ -1576,47 +1576,11 @@ export default function AdminUsers() {
                           <div>
                             <p className="font-medium text-gray-900">{profile.label}</p>
                             <p className="text-xs text-gray-500">{profile.description}</p>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {profile.defaultDiscounts.map((discount) => (
-                                <span
-                                  key={`create-default-discount-${discount.groupId}`}
-                                  className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full"
-                                >
-                                  <FaLayerGroup className="text-gray-400" />
-                                  <span>{discount.label}</span>
-                                  <span className="font-semibold text-gray-900">
-                                    {discount.percent}%
-                                  </span>
-                                </span>
-                              ))}
-                            </div>
                           </div>
                         </label>
                       ))}
                     </div>
                   </section>
-
-                  {createForm.defaultDiscounts.length > 0 && (
-                    <section className="space-y-2">
-                      <h4 className="text-sm font-semibold text-gray-800">
-                        Базові знижки обраного профілю
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {createForm.defaultDiscounts.map((discount) => (
-                          <span
-                            key={`create-preview-${discount.groupId}`}
-                            className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full"
-                          >
-                            <FaLayerGroup className="text-gray-400" />
-                            <span>{discount.label}</span>
-                            <span className="font-semibold text-gray-900">
-                              {discount.percent}%
-                            </span>
-                          </span>
-                        ))}
-                      </div>
-                    </section>
-                  )}
 
                   <section className="space-y-4">
                     <h4 className="font-semibold text-gray-800 flex items-center gap-2">
@@ -2090,20 +2054,6 @@ export default function AdminUsers() {
                           <div>
                             <p className="font-medium text-gray-900">{profile.label}</p>
                             <p className="text-xs text-gray-500">{profile.description}</p>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {profile.defaultDiscounts.map((discount) => (
-                                <span
-                                  key={discount.groupId}
-                                  className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full"
-                                >
-                                  <FaLayerGroup className="text-gray-400" />
-                                  <span>{discount.label}</span>
-                                  <span className="font-semibold text-gray-900">
-                                    {discount.percent}%
-                                  </span>
-                                </span>
-                              ))}
-                            </div>
                           </div>
                         </label>
                       ))}
