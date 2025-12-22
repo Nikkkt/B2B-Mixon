@@ -333,16 +333,20 @@ public class AdminUsersService : IAdminUsersService
             if (existing.TryGetValue(pair.Key, out var special))
             {
                 special.Percent = pair.Value;
+                _db.Entry(special).State = EntityState.Modified;
             }
             else
             {
-                user.SpecialDiscounts.Add(new SpecialDiscount
+                var newSpecial = new SpecialDiscount
                 {
                     UserId = user.Id,
                     ProductGroupId = pair.Key,
                     Percent = pair.Value,
                     CreatedAt = DateTime.UtcNow
-                });
+                };
+
+                user.SpecialDiscounts.Add(newSpecial);
+                _db.Entry(newSpecial).State = EntityState.Added;
             }
         }
     }
