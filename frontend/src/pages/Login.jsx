@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 
 import AuthLayout from "../components/AuthLayout";
 import { login as loginRequest } from "../api/authApi";
@@ -9,6 +10,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState("");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
@@ -114,16 +116,26 @@ export default function Login() {
           className="w-full rounded-lg border border-gray-300 p-3 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
           required
         />
-        <input
-          type="password"
-          name="password"
-          autoComplete="current-password"
-          placeholder="Пароль"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          className="w-full rounded-lg border border-gray-300 p-3 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
-          required
-        />
+        <div className="relative">
+          <input
+            type={showPassword ? "text" : "password"}
+            name="password"
+            autoComplete="current-password"
+            placeholder="Пароль"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className="w-full rounded-lg border border-gray-300 p-3 pr-12 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            aria-label={showPassword ? "Приховати пароль" : "Показати пароль"}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+          >
+            {showPassword ? <FaEyeSlash /> : <FaEye />}
+          </button>
+        </div>
         <div className="flex justify-between text-sm text-gray-500">
           <span></span>
           <a href="/password-reset" className="text-blue-600 hover:underline">

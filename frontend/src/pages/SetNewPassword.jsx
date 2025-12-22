@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 
 import AuthLayout from "../components/AuthLayout";
 import { resetPassword } from "../api/authApi";
@@ -36,6 +37,8 @@ export default function SetNewPassword() {
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formError, setFormError] = useState("");
 
   const passwordChecks = useMemo(() =>
@@ -84,15 +87,25 @@ export default function SetNewPassword() {
     >
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="space-y-2">
-          <input
-            type="password"
-            placeholder="Новий пароль"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete="new-password"
-            required
-            className="w-full rounded-lg border border-gray-300 p-3 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Новий пароль"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="new-password"
+              required
+              className="w-full rounded-lg border border-gray-300 p-3 pr-12 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? "Приховати пароль" : "Показати пароль"}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+            >
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
+          </div>
           <ul className="space-y-1 text-xs text-gray-600">
             {passwordChecks.map((rule) => (
               <li key={rule.id} className="flex items-center gap-2">
@@ -110,15 +123,25 @@ export default function SetNewPassword() {
           </ul>
         </div>
         <div>
-          <input
-            type="password"
-            placeholder="Підтвердження паролю"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-            autoComplete="new-password"
-            required
-            className="w-full rounded-lg border border-gray-300 p-3 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
-          />
+          <div className="relative">
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Підтвердження паролю"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              autoComplete="new-password"
+              required
+              className="w-full rounded-lg border border-gray-300 p-3 pr-12 text-sm sm:text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-400"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword((prev) => !prev)}
+              aria-label={showConfirmPassword ? "Приховати пароль" : "Показати пароль"}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+            >
+              {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
+          </div>
           {confirmPassword && !passwordsMatch && (
             <p className="text-xs text-red-500 mt-1">Паролі не співпадають</p>
           )}
