@@ -360,7 +360,7 @@ export default function AdminUsers() {
       roles: normalizeRoles(user.roles ?? user.role),
       shippingPoint: user.shippingPoint || null,
       departmentShop: user.departmentShop || null,
-      discountType: user.discountProfileId ? String(user.discountProfileId) : null,
+      discountType: user.discountType || null,
       defaultDiscounts: user.defaultDiscounts || [],
       specialDiscounts: user.specialDiscounts?.map((discount) => ({
         id: discount.id,
@@ -2097,7 +2097,7 @@ export default function AdminUsers() {
                                   className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full"
                                 >
                                   <FaLayerGroup className="text-gray-400" />
-                                  <span>{discount.groupId}</span>
+                                  <span>{discount.label}</span>
                                   <span className="font-semibold text-gray-900">
                                     {discount.percent}%
                                   </span>
