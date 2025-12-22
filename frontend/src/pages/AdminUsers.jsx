@@ -14,6 +14,7 @@ import {
   FaCopy,
   FaCheck,
 } from "react-icons/fa";
+import Select from "react-select";
 import {
   fetchAdminUsersDashboard,
   updateAdminUser,
@@ -305,6 +306,101 @@ const countryOptions = [
   "Інше",
 ];
 
+const ALL_ACCESS_OPTION = { value: "all", label: "Всі групи" };
+
+const normalizeAccessCategoriesSelection = (selectedOptions, actionMeta) => {
+  const values = Array.isArray(selectedOptions)
+    ? selectedOptions.map((option) => option.value)
+    : [];
+
+  if (!values.includes("all")) {
+    return values.filter(Boolean);
+  }
+
+  if (actionMeta?.action === "select-option") {
+    const selectedValue = actionMeta?.option?.value;
+    if (selectedValue === "all") {
+      return ["all"];
+    }
+    if (selectedValue) {
+      return values.filter((value) => value !== "all");
+    }
+  }
+
+  if (
+    actionMeta?.action === "remove-value" &&
+    actionMeta?.removedValue?.value === "all"
+  ) {
+    return values.filter((value) => value !== "all");
+  }
+
+  return ["all"];
+};
+
+const accessCategorySelectStyles = {
+  container: (provided) => ({
+    ...provided,
+    width: "100%",
+    minWidth: 0,
+  }),
+  control: (provided, state) => ({
+    ...provided,
+    minHeight: "44px",
+    borderRadius: "0.75rem",
+    borderColor: state.isFocused ? "rgb(99 102 241)" : "rgb(229 231 235)",
+    boxShadow: state.isFocused ? "0 0 0 2px rgba(99,102,241,0.22)" : "none",
+    "&:hover": {
+      borderColor: "rgb(99 102 241)",
+    },
+  }),
+  valueContainer: (provided) => ({
+    ...provided,
+    padding: "0.25rem 0.75rem",
+    minWidth: 0,
+  }),
+  placeholder: (provided) => ({
+    ...provided,
+    color: "rgb(107 114 128)",
+    fontSize: "0.875rem",
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    backgroundColor: state.isSelected
+      ? "rgba(99,102,241,0.14)"
+      : state.isFocused
+        ? "rgba(99,102,241,0.08)"
+        : "white",
+    color: "rgb(15 23 42)",
+  }),
+  menu: (provided) => ({
+    ...provided,
+    borderRadius: "0.75rem",
+    overflow: "hidden",
+  }),
+  menuPortal: (provided) => ({
+    ...provided,
+    zIndex: 9999,
+  }),
+  multiValue: (provided) => ({
+    ...provided,
+    backgroundColor: "rgba(99,102,241,0.12)",
+    borderRadius: "0.5rem",
+  }),
+  multiValueLabel: (provided) => ({
+    ...provided,
+    color: "rgb(67 56 202)",
+    fontWeight: 600,
+  }),
+  multiValueRemove: (provided) => ({
+    ...provided,
+    color: "rgb(67 56 202)",
+    ":hover": {
+      backgroundColor: "rgba(99,102,241,0.22)",
+      color: "rgb(49 46 129)",
+    },
+  }),
+};
+
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(1);
@@ -464,21 +560,9 @@ export default function AdminUsers() {
     setCreateForm((prev) => ({ ...prev, managerId: value || null }));
   };
 
-  const handleCreateToggleAccess = (id) => {
-    setCreateForm((prev) => {
-      let nextAccess;
-      if (id === "all") {
-        nextAccess = prev.accessCategories.includes("all") ? [] : ["all"];
-      } else {
-        const withoutAll = prev.accessCategories.filter((item) => item !== "all");
-        if (withoutAll.includes(id)) {
-          nextAccess = withoutAll.filter((item) => item !== id);
-        } else {
-          nextAccess = [...withoutAll, id];
-        }
-      }
-      return { ...prev, accessCategories: nextAccess };
-    });
+  const handleCreateAccessCategoriesChange = (selectedOptions, actionMeta) => {
+    const normalized = normalizeAccessCategoriesSelection(selectedOptions, actionMeta);
+    setCreateForm((prev) => ({ ...prev, accessCategories: normalized }));
   };
 
   const handleCreateDraftChange = (field, value) => {
@@ -746,6 +830,55 @@ export default function AdminUsers() {
     [productGroupMap]
   );
 
+  const accessCategoryOptions = useMemo(() => {
+    const groupOptions = productGroups
+      .filter((group) => group.id)
+      .map((group) => ({
+        value: group.id,
+        label: group.label || group.name || group.id,
+      }));
+
+    return [ALL_ACCESS_OPTION, ...groupOptions];
+  }, [productGroups]);
+
+  const accessCategoryOptionMap = useMemo(() => {
+    const map = {};
+    accessCategoryOptions.forEach((option) => {
+      map[option.value] = option;
+    });
+    return map;
+  }, [accessCategoryOptions]);
+
+  const createAccessCategoryValue = useMemo(() => {
+    const selected = createForm.accessCategories ?? [];
+    const normalized = selected.includes("all") ? ["all"] : selected.filter(Boolean);
+
+    return normalized
+      .map(
+        (value) =>
+          accessCategoryOptionMap[value] || {
+            value,
+            label: resolveGroupName(value),
+          }
+      )
+      .filter(Boolean);
+  }, [createForm.accessCategories, accessCategoryOptionMap, resolveGroupName]);
+
+  const accessCategoryValue = useMemo(() => {
+    const selected = formState?.accessCategories ?? [];
+    const normalized = selected.includes("all") ? ["all"] : selected.filter(Boolean);
+
+    return normalized
+      .map(
+        (value) =>
+          accessCategoryOptionMap[value] || {
+            value,
+            label: resolveGroupName(value),
+          }
+      )
+      .filter(Boolean);
+  }, [formState, accessCategoryOptionMap, resolveGroupName]);
+
   const newRegistrations = useMemo(
     () => users.filter((user) => user.isNew).length,
     [users]
@@ -829,22 +962,9 @@ export default function AdminUsers() {
     setFormState((prev) => (prev ? { ...prev, managerId: value || null } : prev));
   };
 
-  const handleToggleAccessCategory = (categoryId) => {
-    setFormState((prev) => {
-      if (!prev) return prev;
-      let nextAccess;
-      if (categoryId === "all") {
-        nextAccess = prev.accessCategories.includes("all") ? [] : ["all"];
-      } else {
-        const withoutAll = prev.accessCategories.filter((id) => id !== "all");
-        if (withoutAll.includes(categoryId)) {
-          nextAccess = withoutAll.filter((id) => id !== categoryId);
-        } else {
-          nextAccess = [...withoutAll, categoryId];
-        }
-      }
-      return { ...prev, accessCategories: nextAccess };
-    });
+  const handleAccessCategoriesChange = (selectedOptions, actionMeta) => {
+    const normalized = normalizeAccessCategoriesSelection(selectedOptions, actionMeta);
+    setFormState((prev) => (prev ? { ...prev, accessCategories: normalized } : prev));
   };
 
   const handleSpecialDraftChange = (field, value) => {
@@ -1653,44 +1773,19 @@ export default function AdminUsers() {
                       <FaEye className="text-indigo-500" />
                       Доступ до залишків за категоріями
                     </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <label
-                        className={`flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer transition ${
-                          createForm.accessCategories.includes("all")
-                            ? "border-indigo-500 bg-indigo-50"
-                            : "border-gray-200 hover:border-indigo-300"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={createForm.accessCategories.includes("all")}
-                          onChange={() => handleCreateToggleAccess("all")}
-                        />
-                        <span className="text-sm font-medium text-gray-900">Всі групи</span>
-                      </label>
-                      {productGroups.map((group) => (
-                        <label
-                          key={`create-access-${group.id}`}
-                          className={`flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer transition ${
-                            createForm.accessCategories.includes("all") ||
-                            createForm.accessCategories.includes(group.id)
-                              ? "border-indigo-500 bg-indigo-50"
-                              : "border-gray-200 hover:border-indigo-300"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={
-                              createForm.accessCategories.includes("all") ||
-                              createForm.accessCategories.includes(group.id)
-                            }
-                            onChange={() => handleCreateToggleAccess(group.id)}
-                            disabled={createForm.accessCategories.includes("all")}
-                          />
-                          <span className="text-sm font-medium text-gray-900">{group.label}</span>
-                        </label>
-                      ))}
-                    </div>
+                    <Select
+                      isMulti
+                      isSearchable
+                      options={accessCategoryOptions}
+                      value={createAccessCategoryValue}
+                      onChange={handleCreateAccessCategoriesChange}
+                      styles={accessCategorySelectStyles}
+                      placeholder="Оберіть категорії..."
+                      closeMenuOnSelect={false}
+                      hideSelectedOptions={false}
+                      menuPortalTarget={document.body}
+                      menuPosition="fixed"
+                    />
                   </section>
 
                   <section className="space-y-3">
@@ -2137,48 +2232,19 @@ export default function AdminUsers() {
                       <FaEye className="text-indigo-500" />
                       Доступ до залишків за категоріями
                     </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <label
-                        className={`flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer transition ${
-                          formState.accessCategories.includes("all")
-                            ? "border-indigo-500 bg-indigo-50"
-                            : "border-gray-200 hover:border-indigo-300"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={formState.accessCategories.includes("all")}
-                          onChange={() => handleToggleAccessCategory("all")}
-                        />
-                        <span className="text-sm font-medium text-gray-900">
-                          Всі групи
-                        </span>
-                      </label>
-                      {productGroups.map((group) => (
-                        <label
-                          key={group.id}
-                          className={`flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer transition ${
-                            formState.accessCategories.includes("all") ||
-                            formState.accessCategories.includes(group.id)
-                              ? "border-indigo-500 bg-indigo-50"
-                              : "border-gray-200 hover:border-indigo-300"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={
-                              formState.accessCategories.includes("all") ||
-                              formState.accessCategories.includes(group.id)
-                            }
-                            onChange={() => handleToggleAccessCategory(group.id)}
-                            disabled={formState.accessCategories.includes("all")}
-                          />
-                          <span className="text-sm font-medium text-gray-900">
-                            {group.name}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
+                    <Select
+                      isMulti
+                      isSearchable
+                      options={accessCategoryOptions}
+                      value={accessCategoryValue}
+                      onChange={handleAccessCategoriesChange}
+                      styles={accessCategorySelectStyles}
+                      placeholder="Оберіть категорії..."
+                      closeMenuOnSelect={false}
+                      hideSelectedOptions={false}
+                      menuPortalTarget={document.body}
+                      menuPosition="fixed"
+                    />
                   </section>
 
                   {createForm.roles.includes("department") && (
