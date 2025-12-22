@@ -14,6 +14,7 @@ const paymentOptions = [
 const orderTypeOptions = [
   { value: "Поточне", label: "Поточне" },
   { value: "Відкладене", label: "Відкладене" },
+  { value: "Спец замовлення", label: "Спец замовлення" },
 ];
 
 export default function Cart() {
