@@ -543,11 +543,15 @@ export default function AdminUsers() {
   };
 
   const handleCreateShippingPoint = (value) => {
-    setCreateForm((prev) => ({ ...prev, shippingPoint: value }));
+    const normalized =
+      typeof value === "string" ? value : value?.value ? String(value.value) : null;
+    setCreateForm((prev) => ({ ...prev, shippingPoint: normalized }));
   };
 
   const handleCreateDepartmentShop = (value) => {
-    setCreateForm((prev) => ({ ...prev, departmentShop: value }));
+    const normalized =
+      typeof value === "string" ? value : value?.value ? String(value.value) : null;
+    setCreateForm((prev) => ({ ...prev, departmentShop: normalized }));
   };
 
   const handleCreateDiscountProfile = (value) => {
@@ -809,6 +813,46 @@ export default function AdminUsers() {
     return options;
   }, [shops, shippingPoints]);
 
+  const locationSelectOptions = useMemo(
+    () =>
+      shippingPointOptions.map((point) => ({
+        value: point.id,
+        label: point.name,
+        type: point.type,
+      })),
+    [shippingPointOptions]
+  );
+
+  const locationOptionMap = useMemo(() => {
+    const map = {};
+    locationSelectOptions.forEach((option) => {
+      if (option?.value != null) {
+        map[String(option.value)] = option;
+      }
+    });
+    return map;
+  }, [locationSelectOptions]);
+
+  const availabilityLocationSelectOptions = useMemo(
+    () =>
+      availabilityUploadLocations.map((location) => ({
+        value: location.id,
+        label: location.name,
+        type: location.type,
+      })),
+    [availabilityUploadLocations]
+  );
+
+  const availabilityLocationOptionMap = useMemo(() => {
+    const map = {};
+    availabilityLocationSelectOptions.forEach((option) => {
+      if (option?.value != null) {
+        map[String(option.value)] = option;
+      }
+    });
+    return map;
+  }, [availabilityLocationSelectOptions]);
+
   const resolveDiscountProfile = useCallback(
     (id) => {
       if (!id) {
@@ -882,6 +926,54 @@ export default function AdminUsers() {
       .filter(Boolean);
   }, [formState, accessCategoryOptionMap, resolveGroupName]);
 
+  const createShippingPointValue = useMemo(() => {
+    const id = createForm.shippingPoint;
+    if (!id) return null;
+    return locationOptionMap[String(id)] || { value: String(id), label: String(id) };
+  }, [createForm.shippingPoint, locationOptionMap]);
+
+  const shippingPointValue = useMemo(() => {
+    const id = formState?.shippingPoint;
+    if (!id) return null;
+    return locationOptionMap[String(id)] || { value: String(id), label: String(id) };
+  }, [formState?.shippingPoint, locationOptionMap]);
+
+  const createAvailabilityLocationValue = useMemo(() => {
+    const id = createForm.departmentShop;
+    if (!id) return null;
+    return (
+      availabilityLocationOptionMap[String(id)] || {
+        value: String(id),
+        label: String(id),
+      }
+    );
+  }, [createForm.departmentShop, availabilityLocationOptionMap]);
+
+  const availabilityLocationValue = useMemo(() => {
+    const id = formState?.departmentShop;
+    if (!id) return null;
+    return (
+      availabilityLocationOptionMap[String(id)] || {
+        value: String(id),
+        label: String(id),
+      }
+    );
+  }, [formState?.departmentShop, availabilityLocationOptionMap]);
+
+  const formatLocationOptionLabel = useCallback(
+    (option) => (
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm font-medium text-gray-900">{option.label}</span>
+        {option.type && (
+          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-gray-500">
+            {option.type === "shop" ? "Магазин" : "Філія"}
+          </span>
+        )}
+      </div>
+    ),
+    []
+  );
+
   const newRegistrations = useMemo(
     () => users.filter((user) => user.isNew).length,
     [users]
@@ -945,11 +1037,15 @@ export default function AdminUsers() {
   };
 
   const handleShippingPointChange = (value) => {
-    setFormState((prev) => ({ ...prev, shippingPoint: value }));
+    const normalized =
+      typeof value === "string" ? value : value?.value ? String(value.value) : null;
+    setFormState((prev) => (prev ? { ...prev, shippingPoint: normalized } : prev));
   };
 
   const handleDepartmentShopChange = (value) => {
-    setFormState((prev) => ({ ...prev, departmentShop: value }));
+    const normalized =
+      typeof value === "string" ? value : value?.value ? String(value.value) : null;
+    setFormState((prev) => (prev ? { ...prev, departmentShop: normalized } : prev));
   };
 
   const handleDiscountTypeChange = (value) => {
@@ -1639,39 +1735,54 @@ export default function AdminUsers() {
                       <FaTruck className="text-indigo-500" />
                       Точка відвантаження
                     </h4>
-                    <div className="space-y-3">
-                      {shippingPointOptions.map((point) => (
-                        <label
-                          key={`create-shipping-point-${point.id}`}
-                          className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition ${
-                            createForm.shippingPoint === point.id
-                              ? "border-indigo-500 bg-indigo-50"
-                              : "border-gray-200 hover:border-indigo-300"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="createShippingPoint"
-                            value={point.id}
-                            checked={createForm.shippingPoint === point.id}
-                            onChange={() => handleCreateShippingPoint(point.id)}
-                            className="mt-1"
-                          />
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="font-medium text-gray-900">{point.name}</p>
-                              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-gray-500">
-                                {point.type === "shop" ? "Магазин" : "Філія"}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-500">
-                              Клієнт бачитиме залишки саме для цієї точки
-                            </p>
-                          </div>
-                        </label>
-                      ))}
+                    <div className="space-y-2">
+                      <Select
+                        isSearchable
+                        isClearable
+                        options={locationSelectOptions}
+                        value={createShippingPointValue}
+                        onChange={handleCreateShippingPoint}
+                        styles={accessCategorySelectStyles}
+                        placeholder="Оберіть точку..."
+                        formatOptionLabel={formatLocationOptionLabel}
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Клієнт бачитиме залишки саме для цієї точки
+                      </p>
                     </div>
                   </section>
+
+                  {createForm.roles.includes("department") && (
+                    <section className="space-y-3">
+                      <h4 className="font-semibold text-gray-800">
+                        Магазин / філія підрозділу (для завантаження залишків)
+                      </h4>
+                      <div className="space-y-3">
+                        {availabilityUploadLocations.length === 0 && (
+                          <p className="text-sm text-gray-500">
+                            Немає доступних магазинів чи філій. Спершу додайте точку відвантаження або магазин.
+                          </p>
+                        )}
+
+                        {availabilityUploadLocations.length > 0 && (
+                          <Select
+                            isSearchable
+                            isClearable
+                            options={availabilityLocationSelectOptions}
+                            value={createAvailabilityLocationValue}
+                            onChange={handleCreateDepartmentShop}
+                            styles={accessCategorySelectStyles}
+                            placeholder="Оберіть магазин / філію..."
+                            formatOptionLabel={formatLocationOptionLabel}
+                            menuPortalTarget={document.body}
+                            menuPosition="fixed"
+                          />
+                        )}
+                      </div>
+                    </section>
+                  )}
 
                   <section className="space-y-4">
                     <h4 className="font-semibold text-gray-800 flex items-center gap-2">
@@ -2049,37 +2160,22 @@ export default function AdminUsers() {
                       <FaTruck className="text-indigo-500" />
                       Точка відвантаження
                     </h4>
-                    <div className="space-y-3">
-                      {shippingPointOptions.map((point) => (
-                        <label
-                          key={point.id}
-                          className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition ${
-                            formState.shippingPoint === point.id
-                              ? "border-indigo-500 bg-indigo-50"
-                              : "border-gray-200 hover:border-indigo-300"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="shippingPoint"
-                            value={point.id}
-                            checked={formState.shippingPoint === point.id}
-                            onChange={() => handleShippingPointChange(point.id)}
-                            className="mt-1"
-                          />
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="font-medium text-gray-900">{point.name}</p>
-                              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-gray-500">
-                                {point.type === "shop" ? "Магазин" : "Філія"}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-500">
-                              Клієнт бачитиме залишки саме для цієї точки
-                            </p>
-                          </div>
-                        </label>
-                      ))}
+                    <div className="space-y-2">
+                      <Select
+                        isSearchable
+                        isClearable
+                        options={locationSelectOptions}
+                        value={shippingPointValue}
+                        onChange={handleShippingPointChange}
+                        styles={accessCategorySelectStyles}
+                        placeholder="Оберіть точку..."
+                        formatOptionLabel={formatLocationOptionLabel}
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Клієнт бачитиме залишки саме для цієї точки
+                      </p>
                     </div>
                   </section>
 
@@ -2095,33 +2191,20 @@ export default function AdminUsers() {
                           </p>
                         )}
 
-                        {availabilityUploadLocations.map((location) => (
-                          <label
-                            key={`availability-location-${location.id}`}
-                            className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition ${
-                              formState.departmentShop === location.id
-                                ? "border-indigo-500 bg-indigo-50"
-                                : "border-gray-200 hover:border-indigo-300"
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name="departmentShop"
-                              value={location.id}
-                              checked={formState.departmentShop === location.id}
-                              onChange={() => handleDepartmentShopChange(location.id)}
-                              className="mt-1"
-                            />
-                            <div>
-                              <span className="block font-medium text-gray-900">
-                                {location.name}
-                              </span>
-                              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-gray-500 mt-1">
-                                {location.type === "shop" ? "Магазин" : "Філія"}
-                              </span>
-                            </div>
-                          </label>
-                        ))}
+                        {availabilityUploadLocations.length > 0 && (
+                          <Select
+                            isSearchable
+                            isClearable
+                            options={availabilityLocationSelectOptions}
+                            value={availabilityLocationValue}
+                            onChange={handleDepartmentShopChange}
+                            styles={accessCategorySelectStyles}
+                            placeholder="Оберіть магазин / філію..."
+                            formatOptionLabel={formatLocationOptionLabel}
+                            menuPortalTarget={document.body}
+                            menuPosition="fixed"
+                          />
+                        )}
                       </div>
                     </section>
                   )}
@@ -2249,49 +2332,6 @@ export default function AdminUsers() {
                       menuPosition="fixed"
                     />
                   </section>
-
-                  {createForm.roles.includes("department") && (
-                    <section className="space-y-3">
-                      <h4 className="font-semibold text-gray-800">
-                        Магазин / філія підрозділу (для завантаження залишків)
-                      </h4>
-                      <div className="space-y-3">
-                        {availabilityUploadLocations.length === 0 && (
-                          <p className="text-sm text-gray-500">
-                            Немає доступних магазинів чи філій. Спершу додайте точку відвантаження або магазин.
-                          </p>
-                        )}
-
-                        {availabilityUploadLocations.map((location) => (
-                          <label
-                            key={`create-availability-location-${location.id}`}
-                            className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition ${
-                              createForm.departmentShop === location.id
-                                ? "border-indigo-500 bg-indigo-50"
-                                : "border-gray-200 hover:border-indigo-300"
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name="createDepartmentShop"
-                              value={location.id}
-                              checked={createForm.departmentShop === location.id}
-                              onChange={() => handleCreateDepartmentShop(location.id)}
-                              className="mt-1"
-                            />
-                            <div>
-                              <span className="block font-medium text-gray-900">
-                                {location.name}
-                              </span>
-                              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-gray-500 mt-1">
-                                {location.type === "shop" ? "Магазин" : "Філія"}
-                              </span>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                    </section>
-                  )}
 
                   <section className="space-y-3">
                     <h4 className="font-semibold text-gray-800">
