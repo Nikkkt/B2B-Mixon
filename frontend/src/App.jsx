@@ -96,6 +96,8 @@ const normalizeRoles = (roles) => {
 
   if (typeof roles === "number") {
     switch (roles) {
+      case 3:
+        return ["department"];
       case 2:
         return ["admin"];
       case 1:
