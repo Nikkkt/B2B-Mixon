@@ -190,7 +190,10 @@ public class OrdersCatalogService : IOrdersCatalogService
 
         var normalizedItems = NormalizeLookupItems(request);
 
-        var codes = normalizedItems.Select(item => item.Code).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var codes = normalizedItems
+            .Select(item => item.Code.ToUpperInvariant())
+            .Distinct()
+            .ToList();
         if (codes.Count == 0)
         {
             return Array.Empty<OrderProductLookupResultDto>();
@@ -203,7 +206,7 @@ public class OrdersCatalogService : IOrdersCatalogService
         }
 
         var productMap = await productsQuery
-            .Where(product => codes.Contains(product.Sku))
+            .Where(product => codes.Contains(product.Sku.ToUpper()))
             .Select(product => new
             {
                 product.Id,
