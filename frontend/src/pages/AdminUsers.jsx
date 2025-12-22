@@ -1826,7 +1826,7 @@ export default function AdminUsers() {
                         <select
                           value={createDraftSpecial.groupId}
                           onChange={(event) => handleCreateDraftChange("groupId", event.target.value)}
-                          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
+                          className="flex-1 min-w-0 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
                         >
                           <option value="">Оберіть групу товарів</option>
                           {productGroups.map((group) => (
@@ -1842,12 +1842,12 @@ export default function AdminUsers() {
                           min="0"
                           max="100"
                           placeholder="%"
-                          className="w-full sm:w-24 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
+                          className="w-full sm:w-24 shrink-0 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
                         />
                         <button
                           onClick={handleCreateAddSpecial}
                           type="button"
-                          className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
+                          className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition shrink-0"
                         >
                           Додати
                         </button>
@@ -2253,7 +2253,7 @@ export default function AdminUsers() {
                           onChange={(event) =>
                             handleSpecialDraftChange("groupId", event.target.value)
                           }
-                          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
+                          className="flex-1 min-w-0 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
                         >
                           <option value="">Оберіть групу товарів</option>
                           {productGroups.map((group) => (
@@ -2271,11 +2271,11 @@ export default function AdminUsers() {
                           min="0"
                           max="100"
                           placeholder="%"
-                          className="w-full sm:w-24 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
+                          className="w-full sm:w-24 shrink-0 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
                         />
                         <button
                           onClick={handleAddSpecialDiscount}
-                          className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
+                          className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition shrink-0"
                         >
                           Додати
                         </button>
