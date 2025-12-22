@@ -88,6 +88,10 @@ public class AdminDepartmentsController : ControllerBase
             await _departmentsService.DeleteDepartmentAsync(id);
             return NoContent();
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { error = ex.Message });

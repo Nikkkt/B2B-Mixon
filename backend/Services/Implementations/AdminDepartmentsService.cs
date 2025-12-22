@@ -240,6 +240,23 @@ public class AdminDepartmentsService : IAdminDepartmentsService
             throw new KeyNotFoundException("Department not found");
         }
 
+        var usesAsDefaultBranch = await _db.Users
+            .AsNoTracking()
+            .AnyAsync(u => u.DefaultBranchId == departmentId);
+
+        var usesAsDepartmentShop = await _db.Users
+            .AsNoTracking()
+            .AnyAsync(u => u.DepartmentShopId == departmentId);
+
+        var usedInOrders = await _db.Orders
+            .AsNoTracking()
+            .AnyAsync(o => o.ShippingDepartmentId == departmentId);
+
+        if (usesAsDefaultBranch || usesAsDepartmentShop || usedInOrders)
+        {
+            throw new ArgumentException("Department is in use and cannot be deleted. Remove it from users/orders first.");
+        }
+
         // Delete all employees first
         var employees = await _db.DepartmentEmployees
             .Where(e => e.DepartmentId == departmentId)
@@ -249,8 +266,15 @@ public class AdminDepartmentsService : IAdminDepartmentsService
         
         // Delete the department
         _db.Departments.Remove(department);
-        
-        await _db.SaveChangesAsync();
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            throw new ArgumentException("Department could not be deleted because it is referenced by other records.");
+        }
     }
 
     private async Task SyncEmployeesAsync(Department department, IEnumerable<AdminDepartmentEmployeeUpdateDto> employees)
