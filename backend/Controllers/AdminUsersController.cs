@@ -1,5 +1,7 @@
 using backend.DTOs.AdminUsers;
 using backend.Services.Interfaces;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -89,5 +91,49 @@ public class AdminUsersController : ControllerBase
             _logger.LogWarning(ex, "Admin provided invalid data while updating user {UserId}", id);
             return BadRequest(new { error = ex.Message });
         }
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<ActionResult> DeleteUser(Guid id)
+    {
+        try
+        {
+            var currentUserId = GetCurrentUserId();
+            if (currentUserId == id)
+            {
+                return BadRequest(new { error = "You cannot delete your own account." });
+            }
+
+            await _adminUsersService.DeleteUserAsync(id);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Admin attempted to delete non-existent user {UserId}", id);
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Admin attempted to delete user {UserId} that cannot be deleted", id);
+            return Conflict(new { error = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Admin attempted to delete user {UserId} with invalid request", id);
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    private Guid GetCurrentUserId()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+
+        if (string.IsNullOrWhiteSpace(userId) || !Guid.TryParse(userId, out var parsed))
+        {
+            throw new InvalidOperationException("Unable to resolve user identity.");
+        }
+
+        return parsed;
     }
 }

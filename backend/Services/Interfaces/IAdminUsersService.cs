@@ -8,4 +8,5 @@ public interface IAdminUsersService
     Task<AdminUserDto> GetUserAsync(Guid userId);
     Task<AdminUserDto> CreateUserAsync(AdminUserCreateRequestDto dto);
     Task<AdminUserDto> UpdateUserAsync(Guid userId, AdminUserUpdateRequestDto dto);
+    Task DeleteUserAsync(Guid userId);
 }

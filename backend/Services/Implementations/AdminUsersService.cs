@@ -51,6 +51,74 @@ public class AdminUsersService : IAdminUsersService
         return await GetUserInternalAsync(userId, reference);
     }
 
+    public async Task DeleteUserAsync(Guid userId)
+    {
+        var user = await _db.Users
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null)
+        {
+            throw new KeyNotFoundException("User not found");
+        }
+
+        var hasOrders = await _db.Orders
+            .AsNoTracking()
+            .AnyAsync(o => o.CreatedByUserId == userId);
+
+        if (hasOrders)
+        {
+            throw new InvalidOperationException("User cannot be deleted because they have created orders.");
+        }
+
+        // Prevent other users from referencing this user as a manager.
+        var managedUsers = await _db.Users
+            .Where(u => u.ManagerUserId == userId)
+            .ToListAsync();
+
+        foreach (var managed in managedUsers)
+        {
+            managed.ManagerUserId = null;
+        }
+
+        // Restrict FK: DepartmentActionLog.PerformedByUserId
+        var actionLogs = await _db.DepartmentActionLogs
+            .Where(l => l.PerformedByUserId == userId)
+            .ToListAsync();
+
+        foreach (var log in actionLogs)
+        {
+            log.PerformedByUserId = null;
+        }
+
+        // Restrict FK: User.ManagerUserId already handled above.
+        // Cascade relations (AuthCodes, SpecialDiscounts, UserProductAccesses, Carts) are configured via migrations.
+
+        // Clean up notification preferences owned by this user.
+        var notificationPreferences = await _db.NotificationPreferences
+            .Where(p => p.OwnerType == NotificationOwnerType.User && p.OwnerId == userId)
+            .ToListAsync();
+
+        _db.NotificationPreferences.RemoveRange(notificationPreferences);
+
+        // In case any rows were stored with the optional UserId FK, clear it too.
+        var legacyUserLinks = await _db.NotificationPreferences
+            .Where(p => EF.Property<Guid?>(p, "UserId") == userId)
+            .ToListAsync();
+
+        foreach (var pref in legacyUserLinks)
+        {
+            // If the record belongs to the user as an owner, it will be removed above.
+            if (pref.OwnerType != NotificationOwnerType.User)
+            {
+                var entry = _db.Entry(pref);
+                entry.Property("UserId").CurrentValue = null;
+            }
+        }
+
+        _db.Users.Remove(user);
+        await _db.SaveChangesAsync();
+    }
+
     public async Task<AdminUserDto> CreateUserAsync(AdminUserCreateRequestDto dto)
     {
         var reference = await LoadReferenceDataAsync();
