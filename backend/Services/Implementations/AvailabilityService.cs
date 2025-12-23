@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using backend.Data;
 using backend.DTOs.Availability;
 using backend.DTOs.Common;
 using backend.Enums;
-using backend.Models;using ClosedXML.Excel;
+using backend.Models;
+using ClosedXML.Excel;
+using ExcelDataReader;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
@@ -1043,78 +1046,118 @@ public class AvailabilityService : IAvailabilityService
 
     private static List<UploadRow> ReadAvailabilityUpload(IFormFile file)
     {
-        using var stream = file.OpenReadStream();
-        using var workbook = new XLWorkbook(stream);
-        var worksheet = workbook.Worksheets.FirstOrDefault();
-
-        if (worksheet == null)
+        try
         {
-            throw new ArgumentException("Файл не містить робочих аркушів.");
-        }
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-        var range = worksheet.RangeUsed();
-        if (range == null)
-        {
-            throw new ArgumentException("Файл не містить рядків з даними.");
-        }
+            using var stream = new MemoryStream();
+            file.CopyTo(stream);
+            stream.Position = 0;
 
-        if (range.ColumnCount() < 2)
-        {
-            throw new ArgumentException("Файл має містити щонайменше дві колонки: у першій — код товару, у другій — кількість.");
-        }
-
-        var usedRows = range.RowsUsed().ToList();
-        if (usedRows.Count == 0)
-        {
-            throw new ArgumentException("Файл не містить рядків з даними.");
-        }
-
-        var headerPresent = LooksLikeAvailabilityHeader(usedRows[0]);
-        var dataRows = headerPresent ? usedRows.Skip(1).ToList() : usedRows;
-
-        if (dataRows.Count == 0)
-        {
-            throw new ArgumentException("Файл не містить рядків з даними.");
-        }
-
-        var rows = new List<UploadRow>();
-        foreach (var row in dataRows)
-        {
-            var rowNumber = row.RowNumber();
-            var code = row.Cell(1).GetString().Trim();
-            if (string.IsNullOrWhiteSpace(code))
+            using var reader = ExcelReaderFactory.CreateReader(stream);
+            var dataSet = reader.AsDataSet(new ExcelDataSetConfiguration
             {
-                continue;
+                ConfigureDataTable = _ => new ExcelDataTableConfiguration
+                {
+                    UseHeaderRow = false
+                }
+            });
+
+            var table = dataSet.Tables.Count > 0 ? dataSet.Tables[0] : null;
+            if (table == null || table.Rows.Count == 0)
+            {
+                throw new ArgumentException("Файл не містить рядків з даними.");
             }
 
-            if (!TryParseQuantity(row.Cell(2), out var quantity))
+            if (table.Columns.Count < 2)
             {
-                continue;
+                throw new ArgumentException("Файл має містити щонайменше дві колонки: у першій — код товару, у другій — кількість.");
             }
 
-            rows.Add(new UploadRow(rowNumber, code, quantity));
-        }
+            var rawRows = table.Rows.Cast<System.Data.DataRow>().ToList();
+            if (rawRows.Count == 0)
+            {
+                throw new ArgumentException("Файл не містить рядків з даними.");
+            }
 
-        return rows;
+            var headerPresent = LooksLikeAvailabilityHeader(rawRows[0]);
+            var startIndex = headerPresent ? 1 : 0;
+
+            var rows = new List<UploadRow>();
+            for (var index = startIndex; index < rawRows.Count; index++)
+            {
+                var row = rawRows[index];
+                var rowNumber = index + 1;
+
+                var code = (row[0]?.ToString() ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(code))
+                {
+                    continue;
+                }
+
+                if (!TryParseQuantity(row[1], out var quantity))
+                {
+                    continue;
+                }
+
+                rows.Add(new UploadRow(rowNumber, code, quantity));
+            }
+
+            return rows;
+        }
+        catch (ArgumentException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new ArgumentException("Не вдалося прочитати Excel-файл. Переконайтесь, що це файл .xls або .xlsx.", ex);
+        }
     }
 
-    private static bool LooksLikeAvailabilityHeader(IXLRangeRow row)
+    private static bool LooksLikeAvailabilityHeader(System.Data.DataRow row)
     {
-        var codeHeader = row.Cell(1).GetString().Trim();
-        var quantityHeader = row.Cell(2).GetString().Trim();
+        var codeHeader = (row[0]?.ToString() ?? string.Empty).Trim();
+        var quantityHeader = (row[1]?.ToString() ?? string.Empty).Trim();
 
         return string.Equals(codeHeader, "Код", StringComparison.OrdinalIgnoreCase) &&
                string.Equals(quantityHeader, "Кількість", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool TryParseQuantity(IXLCell cell, out decimal quantity)
+    private static bool TryParseQuantity(object? value, out decimal quantity)
     {
-        if (cell.TryGetValue(out quantity))
+        if (value == null || value == DBNull.Value)
         {
-            return true;
+            quantity = 0;
+            return false;
         }
 
-        var text = cell.GetString();
+        switch (value)
+        {
+            case decimal decimalValue:
+                quantity = decimalValue;
+                return true;
+            case double doubleValue:
+                quantity = Convert.ToDecimal(doubleValue);
+                return true;
+            case float floatValue:
+                quantity = Convert.ToDecimal(floatValue);
+                return true;
+            case int intValue:
+                quantity = intValue;
+                return true;
+            case long longValue:
+                quantity = longValue;
+                return true;
+        }
+
+        var text = (value.ToString() ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            quantity = 0;
+            return false;
+        }
+
         if (decimal.TryParse(text, NumberStyles.Number | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out quantity))
         {
             return true;

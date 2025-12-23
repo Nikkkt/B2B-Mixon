@@ -17,6 +17,11 @@ export default function ConfirmRegistration() {
   const inputRefs = useRef([]);
   const email = location.state?.email || "";
 
+  const resetCodeInputs = () => {
+    setCode(["", "", "", "", "", ""]);
+    setTimeout(() => inputRefs.current[0]?.focus(), 0);
+  };
+
   const verifyMutation = useMutation({
     mutationFn: verifyEmail,
     onSuccess: (data) => {
@@ -25,10 +30,12 @@ export default function ConfirmRegistration() {
         navigate("/login", { state: { fromRegistration: true } });
       } else {
         setError("Не вдалося підтвердити код. Спробуйте ще раз.");
+        resetCodeInputs();
       }
     },
     onError: (mutationError) => {
       setError(mutationError.message);
+      resetCodeInputs();
     }
   });
 
@@ -80,6 +87,7 @@ export default function ConfirmRegistration() {
   const handleResend = () => {
     setError("");
     setInfoMessage("");
+    resetCodeInputs();
     resendMutation.mutate(email);
   };
 

@@ -17,12 +17,18 @@ export default function PasswordReset() {
   const navigate = useNavigate();
   const inputRefs = useRef([]);
 
+  const resetCodeInputs = () => {
+    setCode(["", "", "", "", "", ""]);
+    setTimeout(() => inputRefs.current[0]?.focus(), 0);
+  };
+
   const requestResetMutation = useMutation({
     mutationFn: requestPasswordReset,
     onSuccess: (data) => {
       setShowCodeInput(true);
       setInfoMessage(data?.message ?? "Код надіслано на ваш email.");
       setFormError("");
+      resetCodeInputs();
     },
     onError: (error) => {
       setFormError(error.message);
@@ -37,6 +43,7 @@ export default function PasswordReset() {
     },
     onError: (error) => {
       setFormError(error.message);
+      resetCodeInputs();
     }
   });
 

@@ -18,6 +18,8 @@ const resolveRole = (role) => {
 
   if (typeof role === "number") {
     switch (role) {
+      case 3:
+        return "department";
       case 2:
         return "admin";
       case 1:
@@ -42,6 +44,11 @@ export default function HomeLayout({children}) {
   const { totalQuantity, toggleDrawer, clearCart, setComment, setOrderType, setPaymentMethod } = useCart();
   const { user, logout } = useAuth();
   const userRole = resolveRole(user?.role);
+  const userRoles = Array.isArray(user?.roles)
+    ? user.roles.map(resolveRole).filter(Boolean)
+    : [];
+  const hasAdminRole = userRole === "admin" || userRoles.includes("admin");
+  const hasDepartmentRole = userRole === "department" || userRoles.includes("department");
 
   const getPageTitle = () => {
     // ... (функція getPageTitle залишається без змін) ...
@@ -113,13 +120,13 @@ export default function HomeLayout({children}) {
               <li><Link to="/view-availability" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaEye className="mr-2" />Перегляд наявності</Link></li>
               <li><Link to="/view-availability-by-group" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaList className="mr-2" />Перегляд наявності по групах</Link></li>
               <li><Link to="/view-availability-by-code" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaCode className="mr-2" />Перегляд наявності по коду</Link></li>
-              {(userRole === "admin" || userRole === "department") && (
+              {(hasAdminRole || hasDepartmentRole) && (
                 <li><Link to="/availability-download" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaFileUpload className="mr-2" />Завантаження наявності</Link></li>
               )}
               <li><Link to="/order-history" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaHistory className="mr-2" />Історія замовлень</Link></li>
             </ul>
 
-            {userRole === "admin" && (
+            {hasAdminRole && (
               <>
                 <hr className="border-gray-700 my-2" />
                 <h3 className="mt-4 mb-4 text-xs font-semibold text-gray-400 uppercase">Адмін</h3>
