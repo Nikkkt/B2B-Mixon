@@ -250,6 +250,7 @@ public class AuthService : IAuthService
             .Include(u => u.DepartmentShop)
             .Include(u => u.DefaultBranch)
             .Include(u => u.DiscountProfile)
+            .Include(u => u.ProductAccesses)
             .FirstOrDefaultAsync(u => u.Id == userId);
 
         if (user == null)
@@ -309,7 +310,7 @@ public class AuthService : IAuthService
 
         await _db.SaveChangesAsync();
 
-        return MapProfile(user);
+        return await GetProfileAsync(userId);
     }
 
     private async Task<AuthCode> CreateAndDispatchCodeAsync(User user, AuthCodePurpose purpose, TimeSpan lifetime)
@@ -416,6 +417,7 @@ public class AuthService : IAuthService
         Language = user.InterfaceLanguage,
         AvatarUrl = user.AvatarUrl,
         DefaultBranchId = user.DefaultBranchId,
+        DefaultBranchName = user.DefaultBranch != null ? BuildDepartmentDisplayName(user.DefaultBranch) : null,
         DepartmentShopId = user.DepartmentShopId,
         DepartmentShopName = user.DepartmentShop != null ? BuildDepartmentDisplayName(user.DepartmentShop) : null,
         DiscountProfileId = user.DiscountProfileId,
@@ -427,30 +429,43 @@ public class AuthService : IAuthService
         Roles = ConvertRolesToStrings(user.Roles)
     };
 
-    private static ProfileResponseDto MapProfile(User user) => new()
+    private static ProfileResponseDto MapProfile(User user)
     {
-        Id = user.Id,
-        FirstName = user.FirstName,
-        LastName = user.LastName,
-        Email = user.Email,
-        Phone = user.Phone,
-        Company = user.Company,
-        CompanyCode = user.CompanyCode,
-        Country = user.Country,
-        City = user.City,
-        Address = user.Address,
-        Fax = user.Fax,
-        Language = user.InterfaceLanguage,
-        AvatarUrl = user.AvatarUrl,
-        DefaultBranchId = user.DefaultBranchId,
-        DepartmentShopId = user.DepartmentShopId,
-        DepartmentShopName = user.DepartmentShop != null ? BuildDepartmentDisplayName(user.DepartmentShop) : null,
-        DiscountProfileId = user.DiscountProfileId,
-        DiscountProfileCode = user.DiscountProfile?.Code,
-        Roles = ConvertRolesToStrings(user.Roles),
-        CreatedAt = user.CreatedAt,
-        LastLoginAt = user.LastLoginAt
-    };
+        var hasFullAccess = user.ProductAccesses.Any(pa => pa.IsFullAccess);
+        var productGroupAccessIds = user.ProductAccesses
+            .Where(pa => !pa.IsFullAccess && pa.ProductGroupId.HasValue)
+            .Select(pa => pa.ProductGroupId!.Value)
+            .Distinct()
+            .ToList();
+
+        return new ProfileResponseDto
+        {
+            Id = user.Id,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email,
+            Phone = user.Phone,
+            Company = user.Company,
+            CompanyCode = user.CompanyCode,
+            Country = user.Country,
+            City = user.City,
+            Address = user.Address,
+            Fax = user.Fax,
+            Language = user.InterfaceLanguage,
+            AvatarUrl = user.AvatarUrl,
+            DefaultBranchId = user.DefaultBranchId,
+            DefaultBranchName = user.DefaultBranch != null ? BuildDepartmentDisplayName(user.DefaultBranch) : null,
+            DepartmentShopId = user.DepartmentShopId,
+            DepartmentShopName = user.DepartmentShop != null ? BuildDepartmentDisplayName(user.DepartmentShop) : null,
+            DiscountProfileId = user.DiscountProfileId,
+            DiscountProfileCode = user.DiscountProfile?.Code,
+            HasFullAccess = hasFullAccess,
+            ProductGroupAccessIds = productGroupAccessIds,
+            Roles = ConvertRolesToStrings(user.Roles),
+            CreatedAt = user.CreatedAt,
+            LastLoginAt = user.LastLoginAt
+        };
+    }
 
     private static int[] ParseRoles(IEnumerable<string> values)
     {

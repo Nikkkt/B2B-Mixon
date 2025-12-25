@@ -15,8 +15,14 @@ export default function CartDrawer() {
     updateItemQuantity,
     removeItem,
     clearCart,
+    currentUser,
   } = useCart();
   const navigate = useNavigate();
+
+  const canSeePricing = Boolean(
+    currentUser?.hasFullAccess || (currentUser?.productGroupAccessIds?.length ?? 0) > 0
+  );
+  const showAccessWarning = Boolean(currentUser) && !canSeePricing;
 
   const handleCheckout = () => {
     closeDrawer();
@@ -54,6 +60,11 @@ export default function CartDrawer() {
         </header>
 
         <section className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          {showAccessWarning && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+              Ціни приховані. Зверніться до адміністратора для доступу.
+            </div>
+          )}
           {hasItems ? (
             items.map((item) => (
               <article key={item.id} className="border border-gray-200 rounded-md p-4 shadow-sm">
@@ -73,14 +84,18 @@ export default function CartDrawer() {
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-gray-700">
-                  <div>
-                    <span className="block text-gray-500">Ціна зі знижкою</span>
-                    <span className="font-medium">{item.priceWithDiscount.toFixed(2)}</span>
-                  </div>
-                  <div>
-                    <span className="block text-gray-500">Ціна</span>
-                    <span className="font-medium">{item.price.toFixed(2)}</span>
-                  </div>
+                  {canSeePricing && (
+                    <>
+                      <div>
+                        <span className="block text-gray-500">Ціна зі знижкою</span>
+                        <span className="font-medium">{item.priceWithDiscount.toFixed(2)}</span>
+                      </div>
+                      <div>
+                        <span className="block text-gray-500">Ціна</span>
+                        <span className="font-medium">{item.price.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
                   <div>
                     <span className="block text-gray-500">Вага (кг)</span>
                     <span className="font-medium">{item.weight.toFixed(3)}</span>
@@ -118,8 +133,12 @@ export default function CartDrawer() {
               <div className="flex justify-between"><span>Загальна кількість, од.:</span><span>{totalQuantity.toFixed(2)}</span></div>
               <div className="flex justify-between"><span>Загальна вага, кг:</span><span>{totalWeight.toFixed(3)}</span></div>
               <div className="flex justify-between"><span>Загальний обʼєм, м³:</span><span>{totalVolume.toFixed(3)}</span></div>
-              <div className="flex justify-between"><span>Сума без знижки, грн:</span><span>{totalOriginalPrice.toFixed(2)}</span></div>
-              <div className="flex justify-between font-semibold"><span>Ваша вартість, грн:</span><span>{totalDiscountedPrice.toFixed(2)}</span></div>
+              {canSeePricing && (
+                <>
+                  <div className="flex justify-between"><span>Сума без знижки, грн:</span><span>{totalOriginalPrice.toFixed(2)}</span></div>
+                  <div className="flex justify-between font-semibold"><span>Ваша вартість, грн:</span><span>{totalDiscountedPrice.toFixed(2)}</span></div>
+                </>
+              )}
             </div>
           )}
 

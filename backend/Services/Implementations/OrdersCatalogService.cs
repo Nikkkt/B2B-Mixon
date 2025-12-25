@@ -325,9 +325,14 @@ public class OrdersCatalogService : IOrdersCatalogService
             .Select(access => new { access.ProductGroupId, access.IsFullAccess })
             .ToListAsync();
 
-        if (accesses.Count == 0 || accesses.Any(a => a.IsFullAccess))
+        if (accesses.Any(a => a.IsFullAccess))
         {
             return UserAccess.Full;
+        }
+
+        if (accesses.Count == 0)
+        {
+            return new UserAccess(false, Array.Empty<Guid>());
         }
 
         var allowedIds = accesses

@@ -18,10 +18,13 @@ public class ProfileResponseDto
     public string Language { get; set; } = "ukrainian";
     public string AvatarUrl { get; set; } = string.Empty;
     public Guid? DefaultBranchId { get; set; }
+    public string? DefaultBranchName { get; set; }
     public Guid? DepartmentShopId { get; set; }
     public string? DepartmentShopName { get; set; }
     public Guid? DiscountProfileId { get; set; }
     public string? DiscountProfileCode { get; set; }
+    public bool HasFullAccess { get; set; }
+    public List<Guid> ProductGroupAccessIds { get; set; } = new();
     public List<string> Roles { get; set; } = new();
     public DateTime CreatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import HomeLayout from "../components/HomeLayout";
 import { FaShoppingCart, FaUpload } from "react-icons/fa";
 import * as XLSX from 'xlsx';
@@ -23,6 +23,9 @@ const formatDecimal = (value, digits = 2) => {
   }
   return number.toFixed(digits);
 };
+
+const getStockDepartmentLabel = (user, fallback = "—") =>
+  user?.departmentShopName || user?.defaultBranchName || fallback;
 
 const mapLookupResultToProduct = (result) => ({
   id: result.productId || result.code,
@@ -50,7 +53,16 @@ export default function OrdersByCode() {
   const [uploadWarning, setUploadWarning] = useState("");
   
   const [orderQuantities, setOrderQuantities] = useState({});
-  const { addItem, openDrawer } = useCart();
+  const { addItem, openDrawer, currentUser } = useCart();
+
+  const canSeeStockAndPrices = Boolean(
+    currentUser?.hasFullAccess || (currentUser?.productGroupAccessIds?.length ?? 0) > 0
+  );
+  const showAccessWarning = Boolean(currentUser) && !canSeeStockAndPrices;
+  const stockDepartmentLabel = useMemo(
+    () => getStockDepartmentLabel(currentUser),
+    [currentUser]
+  );
 
   const lookupAndProcess = async (items, onError) => {
     if (!items || items.length === 0) {
@@ -374,7 +386,13 @@ export default function OrdersByCode() {
         {products.length > 0 && (
           <div className="mt-8 flex-1 flex flex-col overflow-hidden min-h-0 rounded-2xl border border-gray-100 bg-white/80 p-4 shadow-inner">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-xl font-bold text-gray-800">Результат пошуку</h3>
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">Результат пошуку</h3>
+                <p className="text-xs text-gray-400">Підрозділ для залишків: {stockDepartmentLabel}</p>
+                {showAccessWarning && (
+                  <p className="mt-2 text-xs text-amber-700">Ціни та залишки приховані. Зверніться до адміністратора для доступу.</p>
+                )}
+              </div>
               <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1 text-xs font-semibold text-blue-700">
                 <span className="h-2 w-2 rounded-full bg-blue-500"></span>
                 {products.length} позицій
@@ -389,11 +407,17 @@ export default function OrdersByCode() {
                       <th className="sticky top-0 border-b border-r border-gray-100 p-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">№</th>
                       <th className="sticky top-0 border-b border-r border-gray-100 p-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Код товара</th>
                       <th className="sticky top-0 border-b border-r border-gray-100 p-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Наименование</th>
-                      <th className="sticky top-0 border-b border-r border-gray-100 p-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">Наявність</th>
+                      {canSeeStockAndPrices && (
+                        <th className="sticky top-0 border-b border-r border-gray-100 p-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">Наявність</th>
+                      )}
                       <th className="sticky top-0 border-b border-r border-gray-100 p-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">Замовлення</th>
-                      <th className="sticky top-0 border-b border-r border-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Ціна</th>
-                      <th className="sticky top-0 border-b border-r border-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">% скидки</th>
-                      <th className="sticky top-0 border-b border-r border-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Ціна зі скидкою</th>
+                      {canSeeStockAndPrices && (
+                        <>
+                          <th className="sticky top-0 border-b border-r border-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Ціна</th>
+                          <th className="sticky top-0 border-b border-r border-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">% скидки</th>
+                          <th className="sticky top-0 border-b border-r border-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Ціна зі скидкою</th>
+                        </>
+                      )}
                       <th className="sticky top-0 border-b border-r border-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Вага (брутто)</th>
                       <th className="sticky top-0 border-b border-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Об'єм</th>
                     </tr>
@@ -407,11 +431,13 @@ export default function OrdersByCode() {
                         <td className="border-r border-gray-100 p-2 text-gray-600 font-medium">{index + 1}</td>
                         <td className="border-r border-gray-100 p-2 text-gray-700 font-semibold">{product.code}</td>
                         <td className="border-r border-gray-100 p-2 text-gray-700">{product.name}</td>
-                        <td className="border-r border-gray-100 p-2 text-center">
-                          <span className={`inline-flex min-w-[60px] items-center justify-center rounded-full border px-2 py-0.5 text-xs font-semibold ${product.isError ? 'border-red-200 bg-red-100 text-red-700' : 'border-blue-100 bg-blue-50 text-blue-700'}`}>
-                            {product.availability || '---'}
-                          </span>
-                        </td>
+                        {canSeeStockAndPrices && (
+                          <td className="border-r border-gray-100 p-2 text-center">
+                            <span className={`inline-flex min-w-[60px] items-center justify-center rounded-full border px-2 py-0.5 text-xs font-semibold ${product.isError ? 'border-red-200 bg-red-100 text-red-700' : 'border-blue-100 bg-blue-50 text-blue-700'}`}>
+                              {product.availability || '---'}
+                            </span>
+                          </td>
+                        )}
                         <td className="border-r border-gray-100 p-2 text-center">
                           <input 
                             type="text"
@@ -422,9 +448,13 @@ export default function OrdersByCode() {
                             disabled={product.isError}
                           />
                         </td>
-                        <td className="border-r border-gray-100 p-2 text-right text-gray-700">{product.price}</td>
-                        <td className="border-r border-gray-100 p-2 text-right text-gray-700">{product.discount}</td>
-                        <td className="border-r border-gray-100 p-2 text-right text-gray-700">{product.priceWithDiscount}</td>
+                        {canSeeStockAndPrices && (
+                          <>
+                            <td className="border-r border-gray-100 p-2 text-right text-gray-700">{product.price}</td>
+                            <td className="border-r border-gray-100 p-2 text-right text-gray-700">{product.discount}</td>
+                            <td className="border-r border-gray-100 p-2 text-right text-gray-700">{product.priceWithDiscount}</td>
+                          </>
+                        )}
                         <td className="border-r border-gray-100 p-2 text-right text-gray-700">{product.weight}</td>
                         <td className="p-2 text-right text-gray-700">{product.volume}</td>
                       </tr>
@@ -442,8 +472,12 @@ export default function OrdersByCode() {
                     {!product.isError && (
                       <>
                         <div className="grid grid-cols-2 gap-2 text-sm mb-4">
-                          <div><span className="font-semibold text-gray-700 block">Ціна:</span><span className="text-gray-900">{product.price}</span></div>
-                          <div><span className="font-semibold text-gray-700 block">Наявність:</span><span className="text-gray-900">{product.availability || '---'}</span></div>
+                          {canSeeStockAndPrices && (
+                            <>
+                              <div><span className="font-semibold text-gray-700 block">Ціна:</span><span className="text-gray-900">{product.price}</span></div>
+                              <div><span className="font-semibold text-gray-700 block">Наявність:</span><span className="text-gray-900">{product.availability || '---'}</span></div>
+                            </>
+                          )}
                           <div><span className="font-semibold text-gray-700 block">Вага:</span><span className="text-gray-900">{product.weight}</span></div>
                           <div><span className="font-semibold text-gray-700 block">Об'єм:</span><span className="text-gray-900">{product.volume}</span></div>
                         </div>

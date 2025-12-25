@@ -51,7 +51,6 @@ export default function HomeLayout({children}) {
   const hasDepartmentRole = userRole === "department" || userRoles.includes("department");
 
   const getPageTitle = () => {
-    // ... (функція getPageTitle залишається без змін) ...
     switch (location.pathname) {
       case "/home": return "Головна - Онлайн замовлення";
       case "/orders": return "Замовлення товарів";
@@ -86,8 +85,6 @@ export default function HomeLayout({children}) {
   return (
     <div className="flex flex-col h-screen">
       <div className="flex flex-1 relative min-w-0">
-        
-        {/* Оверлей для закриття мобільного меню */}
         {isSidebarOpen && (
           <div 
             className="fixed inset-0 bg-black opacity-50 z-10 md:hidden"
@@ -95,7 +92,6 @@ export default function HomeLayout({children}) {
           ></div>
         )}
 
-        {/* --- ОНОВЛЕНА Бічна панель --- */}
         <aside 
           className={`w-64 bg-gray-900 text-white p-4 
                      fixed h-full z-20 
@@ -105,7 +101,6 @@ export default function HomeLayout({children}) {
         >
           <div className="mb-6 mt-6 flex justify-between items-center">
             <img src={logo} alt="Logo" className="h-18 w-auto" />
-            {/* Кнопка закриття (хрестик) для мобілок */}
             <button className="text-white text-2xl md:hidden" onClick={closeMobileSidebar}>
               <FaTimes />
             </button>
@@ -113,7 +108,6 @@ export default function HomeLayout({children}) {
           
           <nav>
             <h3 className="mt-4 mb-4 text-xs font-semibold text-gray-400 uppercase">Акаунт</h3>
-            {/* --- Посилання замінено на <Link> --- */}
             <ul className="space-y-1 mb-4">
               <li><Link to="/orders" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaShoppingCart className="mr-2" />Замовлення товарів</Link></li>
               <li><Link to="/orders-by-code" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaBarcode className="mr-2" />Замовлення по кодах</Link></li>
@@ -142,11 +136,9 @@ export default function HomeLayout({children}) {
           </nav>
         </aside>
 
-        {/* --- ОНОВЛЕНА Основна область --- */}
         <div className="flex-1 flex flex-col w-full md:w-auto min-w-0">
           <header className="bg-gray-800 text-white p-4 flex justify-between items-center relative">
             
-            {/* --- Нова "Гамбургер" кнопка --- */}
             <button 
               className="text-white text-2xl md:hidden"
               onClick={() => setIsSidebarOpen(true)}
@@ -189,7 +181,6 @@ export default function HomeLayout({children}) {
             </div>
           </header>
 
-          {/* <main> тепер має flex-col, щоб Orders.jsx міг коректно розтягуватись */}
           <main className="flex-1 p-4 md:p-6 bg-gray-100 flex flex-col min-w-0 overflow-x-hidden">
             {children}
           </main>

@@ -16,6 +16,9 @@ const toGroupLabel = (group) => {
   return parts.length ? parts.join(" - ") : group?.name || "—";
 };
 
+const getStockDepartmentLabel = (user, fallback = "—") =>
+  pickReadableValue([user?.departmentShopName, user?.defaultBranchName], fallback);
+
 const mapProductFromApi = (product) => ({
   id: product.id,
   code: product.code,
@@ -117,8 +120,17 @@ export default function Orders() {
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [orderQuantities, setOrderQuantities] = useState({});
   const [errorMessage, setErrorMessage] = useState(null);
-  const { addItem, openDrawer } = useCart();
+  const { addItem, openDrawer, currentUser } = useCart();
   const { warning, success, error: notifyError } = useNotifications();
+
+  const canSeeStockAndPrices = Boolean(
+    currentUser?.hasFullAccess || (currentUser?.productGroupAccessIds?.length ?? 0) > 0
+  );
+  const showAccessWarning = Boolean(currentUser) && !canSeeStockAndPrices;
+  const stockDepartmentLabel = useMemo(
+    () => getStockDepartmentLabel(currentUser),
+    [currentUser]
+  );
 
   const directionOptions = useMemo(() => directions.map((direction) => ({
     value: direction.id,
@@ -321,6 +333,12 @@ export default function Orders() {
         <h2 className="text-2xl font-bold text-gray-800 mb-6">
           Замовлення товарів
         </h2>
+        <p className="text-xs text-gray-400 mb-4">Підрозділ для залишків: {stockDepartmentLabel}</p>
+        {showAccessWarning && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Ціни та залишки приховані. Зверніться до адміністратора для доступу.
+          </div>
+        )}
         <div className="grid gap-6 lg:grid-cols-[3fr_2fr] mb-1">
           <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/70 via-white to-blue-50 p-5 shadow-inner">
             <div className="mb-4 flex items-center gap-3 text-blue-900">
@@ -441,11 +459,17 @@ export default function Orders() {
                     <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">№</th>
                     <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Код товару</th>
                     <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Найменування</th>
-                    <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Наявність</th>
+                    {canSeeStockAndPrices && (
+                      <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Наявність</th>
+                    )}
                     <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Замовлення</th>
-                    <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Ціна</th>
-                    <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">% знижки</th>
-                    <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Ціна зі знижкою</th>
+                    {canSeeStockAndPrices && (
+                      <>
+                        <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Ціна</th>
+                        <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">% знижки</th>
+                        <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Ціна зі знижкою</th>
+                      </>
+                    )}
                     <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Вага (брутто)</th>
                     <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Об'єм</th>
                     <th className="sticky top-0 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">В кошик</th>
@@ -460,11 +484,13 @@ export default function Orders() {
                       <td className="border-r border-gray-100 p-2 text-gray-600 font-medium last:border-r-0">{index + 1}</td>
                       <td className="border-r border-gray-100 p-2 text-gray-700 font-semibold last:border-r-0">{product.code}</td>
                       <td className="border-r border-gray-100 p-2 text-gray-700 last:border-r-0">{product.name}</td>
-                      <td className="border-r border-gray-100 p-2 text-center last:border-r-0">
-                        <span className="inline-flex min-w-[60px] items-center justify-center rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                          {product.availability || "---"}
-                        </span>
-                      </td>
+                      {canSeeStockAndPrices && (
+                        <td className="border-r border-gray-100 p-2 text-center last:border-r-0">
+                          <span className="inline-flex min-w-[60px] items-center justify-center rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                            {product.availability || "---"}
+                          </span>
+                        </td>
+                      )}
                       <td className="border-r border-gray-100 p-2 text-center last:border-r-0">
                         <input 
                           type="number"
@@ -474,9 +500,13 @@ export default function Orders() {
                           placeholder="0"
                         />
                       </td>
-                      <td className="border-r border-gray-100 p-2 text-right text-gray-700 last:border-r-0">{product.price}</td>
-                      <td className="border-r border-gray-100 p-2 text-right text-gray-700 last:border-r-0">{product.discount}</td>
-                      <td className="border-r border-gray-100 p-2 text-right text-gray-700 last:border-r-0">{product.priceWithDiscount}</td>
+                      {canSeeStockAndPrices && (
+                        <>
+                          <td className="border-r border-gray-100 p-2 text-right text-gray-700 last:border-r-0">{product.price}</td>
+                          <td className="border-r border-gray-100 p-2 text-right text-gray-700 last:border-r-0">{product.discount}</td>
+                          <td className="border-r border-gray-100 p-2 text-right text-gray-700 last:border-r-0">{product.priceWithDiscount}</td>
+                        </>
+                      )}
                       <td className="border-r border-gray-100 p-2 text-right text-gray-700 last:border-r-0">{product.weight}</td>
                       <td className="border-r border-gray-100 p-2 text-right text-gray-700 last:border-r-0">{product.volume}</td>
                       <td className="p-2 text-center">
@@ -504,14 +534,18 @@ export default function Orders() {
                   <p className="text-sm text-gray-500 mb-3">Код: {product.code}</p>
 
                   <div className="grid grid-cols-2 gap-2 text-sm mb-4">
-                    <div>
-                      <span className="font-semibold text-gray-700 block">Ціна:</span>
-                      <span className="text-gray-900">{product.price}</span>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-700 block">Наявність:</span>
-                      <span className="text-gray-900">{product.availability || '---'}</span>
-                    </div>
+                    {canSeeStockAndPrices && (
+                      <>
+                        <div>
+                          <span className="font-semibold text-gray-700 block">Ціна:</span>
+                          <span className="text-gray-900">{product.price}</span>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-gray-700 block">Наявність:</span>
+                          <span className="text-gray-900">{product.availability || '---'}</span>
+                        </div>
+                      </>
+                    )}
                     <div>
                       <span className="font-semibold text-gray-700 block">Вага (брутто):</span>
                       <span className="text-gray-900">{product.weight}</span>

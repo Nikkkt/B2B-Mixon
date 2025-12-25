@@ -236,6 +236,8 @@ public class CartService : ICartService
 
     private async Task<CartDto> MapToCartDtoAsync(Cart cart)
     {
+        var access = await ResolveProductAccessAsync(cart.UserId);
+
         // Reload cart with all navigation properties if needed
         if (_db.Entry(cart).State != Microsoft.EntityFrameworkCore.EntityState.Detached)
         {
@@ -254,9 +256,9 @@ public class CartService : ICartService
             ProductCode = ci.Product?.Sku ?? string.Empty,
             ProductName = ci.Product?.Name ?? string.Empty,
             Quantity = ci.Quantity,
-            Price = ci.PriceSnapshot,
-            DiscountPercent = ci.DiscountPercentSnapshot,
-            PriceWithDiscount = ci.PriceWithDiscountSnapshot,
+            Price = CanSeePricing(access, ci.Product) ? ci.PriceSnapshot : 0m,
+            DiscountPercent = CanSeePricing(access, ci.Product) ? ci.DiscountPercentSnapshot : 0m,
+            PriceWithDiscount = CanSeePricing(access, ci.Product) ? ci.PriceWithDiscountSnapshot : 0m,
             Weight = ci.WeightSnapshot,
             Volume = ci.VolumeSnapshot,
             Availability = null, // Will be populated from inventory if needed
@@ -280,6 +282,53 @@ public class CartService : ICartService
             Items = items,
             Totals = totals
         };
+    }
+
+    private async Task<UserAccess> ResolveProductAccessAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var accesses = await _db.UserProductAccesses
+            .AsNoTracking()
+            .Where(access => access.UserId == userId)
+            .Select(access => new { access.ProductGroupId, access.IsFullAccess })
+            .ToListAsync(cancellationToken);
+
+        if (accesses.Any(a => a.IsFullAccess))
+        {
+            return UserAccess.Full;
+        }
+
+        if (accesses.Count == 0)
+        {
+            return new UserAccess(false, Array.Empty<Guid>());
+        }
+
+        var allowedIds = accesses
+            .Where(a => a.ProductGroupId.HasValue)
+            .Select(a => a.ProductGroupId!.Value)
+            .Distinct()
+            .ToHashSet();
+
+        return new UserAccess(false, allowedIds);
+    }
+
+    private static bool CanSeePricing(UserAccess access, Product? product)
+    {
+        if (access.HasFullAccess)
+        {
+            return true;
+        }
+
+        if (product == null)
+        {
+            return false;
+        }
+
+        return access.AllowedGroupIds.Contains(product.ProductGroupId);
+    }
+
+    private sealed record UserAccess(bool HasFullAccess, IReadOnlyCollection<Guid> AllowedGroupIds)
+    {
+        public static UserAccess Full { get; } = new(true, Array.Empty<Guid>());
     }
 }
 

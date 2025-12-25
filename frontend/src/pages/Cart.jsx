@@ -34,6 +34,7 @@ export default function Cart() {
     setOrderType,
     comment,
     setComment,
+    currentUser,
   } = useCart();
 
   const { user } = useAuth();
@@ -42,6 +43,11 @@ export default function Cart() {
   const location = useLocation();
 
   const hasItems = items.length > 0;
+
+  const canSeePricing = Boolean(
+    currentUser?.hasFullAccess || (currentUser?.productGroupAccessIds?.length ?? 0) > 0
+  );
+  const showAccessWarning = Boolean(currentUser) && !canSeePricing;
 
   // No customer account needed - orders are linked directly to users
 
@@ -139,6 +145,11 @@ export default function Cart() {
           </button>
         </div>
         <p className="text-sm text-gray-500 mb-6">Перевірте та відредагуйте вибрані товари перед оформленням. Всі показники автоматично перераховуються.</p>
+        {showAccessWarning && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Ціни приховані. Зверніться до адміністратора для доступу.
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
           {/* Table Section - Full Width */}
@@ -153,8 +164,12 @@ export default function Cart() {
                       <tr className="text-left text-[11px] font-semibold tracking-[0.08em] text-gray-600 uppercase">
                         <th className="px-4 py-3 border-b border-r border-gray-100">Код</th>
                         <th className="px-4 py-3 border-b border-r border-gray-100">Найменування</th>
-                        <th className="px-4 py-3 border-b border-r border-gray-100 text-right">Ціна</th>
-                        <th className="px-4 py-3 border-b border-r border-gray-100 text-right">Зі знижкою</th>
+                        {canSeePricing && (
+                          <>
+                            <th className="px-4 py-3 border-b border-r border-gray-100 text-right">Ціна</th>
+                            <th className="px-4 py-3 border-b border-r border-gray-100 text-right">Зі знижкою</th>
+                          </>
+                        )}
                         <th className="px-4 py-3 border-b border-r border-gray-100 text-right">Кількість</th>
                         <th className="px-4 py-3 border-b border-r border-gray-100 text-right">Вага</th>
                         <th className="px-4 py-3 border-b border-r border-gray-100 text-right">Обʼєм</th>
@@ -166,13 +181,17 @@ export default function Cart() {
                         <tr key={item.id} className="border-b border-gray-100 transition hover:bg-blue-50/60">
                           <td className="px-4 py-3 border-r border-gray-100 text-gray-700">{item.productCode}</td>
                           <td className="px-4 py-3 border-r border-gray-100 text-gray-900 font-medium min-w-[16rem]">{item.productName}</td>
-                          <td className="px-4 py-3 border-r border-gray-100 text-right text-gray-700">{item.price.toFixed(2)}</td>
-                          <td className="px-4 py-3 border-r border-gray-100 text-right">
-                            <span className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                              <span className="h-2 w-2 rounded-full bg-blue-300" />
-                              {item.priceWithDiscount.toFixed(2)}
-                            </span>
-                          </td>
+                          {canSeePricing && (
+                            <>
+                              <td className="px-4 py-3 border-r border-gray-100 text-right text-gray-700">{item.price.toFixed(2)}</td>
+                              <td className="px-4 py-3 border-r border-gray-100 text-right">
+                                <span className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                                  <span className="h-2 w-2 rounded-full bg-blue-300" />
+                                  {item.priceWithDiscount.toFixed(2)}
+                                </span>
+                              </td>
+                            </>
+                          )}
                           <td className="px-4 py-3 border-r border-gray-100 text-right">
                             <input
                               type="number"
@@ -231,14 +250,18 @@ export default function Cart() {
                     </div>
                     <p className="text-gray-900 font-medium">{item.productName}</p>
                     <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
-                      <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
-                        <p className="text-[10px] uppercase tracking-wide">Ціна</p>
-                        <p className="text-sm font-semibold text-gray-900">{item.price.toFixed(2)}</p>
-                      </div>
-                      <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2">
-                        <p className="text-[10px] uppercase tracking-wide text-blue-600">Зі знижкою</p>
-                        <p className="text-sm font-semibold text-blue-700">{item.priceWithDiscount.toFixed(2)}</p>
-                      </div>
+                      {canSeePricing && (
+                        <>
+                          <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                            <p className="text-[10px] uppercase tracking-wide">Ціна</p>
+                            <p className="text-sm font-semibold text-gray-900">{item.price.toFixed(2)}</p>
+                          </div>
+                          <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2">
+                            <p className="text-[10px] uppercase tracking-wide text-blue-600">Зі знижкою</p>
+                            <p className="text-sm font-semibold text-blue-700">{item.priceWithDiscount.toFixed(2)}</p>
+                          </div>
+                        </>
+                      )}
                       <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
                         <p className="text-[10px] uppercase tracking-wide">Вага</p>
                         <p className="text-sm font-semibold text-gray-900">{(item.weight * item.quantity).toFixed(3)}</p>
@@ -322,8 +345,12 @@ export default function Cart() {
               <div className="flex items-center justify-between rounded-xl border border-emerald-100 bg-white/80 px-3 py-2"><span>Загальна кількість, од.:</span><span className="font-semibold text-gray-900">{totals.quantity}</span></div>
               <div className="flex items-center justify-between rounded-xl border border-emerald-100 bg-white/80 px-3 py-2"><span>Загальна вага, кг:</span><span>{totals.weight}</span></div>
               <div className="flex items-center justify-between rounded-xl border border-emerald-100 bg-white/80 px-3 py-2"><span>Загальний обʼєм, м³:</span><span>{totals.volume}</span></div>
-              <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-white/80 px-3 py-2"><span>Сума без знижки, грн:</span><span className="font-semibold text-gray-900">{totals.originalPrice}</span></div>
-              <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 font-semibold text-emerald-900"><span>Ваша вартість, грн:</span><span>{totals.discountedPrice}</span></div>
+              {canSeePricing && (
+                <>
+                  <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-white/80 px-3 py-2"><span>Сума без знижки, грн:</span><span className="font-semibold text-gray-900">{totals.originalPrice}</span></div>
+                  <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 font-semibold text-emerald-900"><span>Ваша вартість, грн:</span><span>{totals.discountedPrice}</span></div>
+                </>
+              )}
               {!hasItems && <p className="pt-4 text-gray-500 text-sm">Кошик порожній.</p>}
             </div>
             <div className="px-4 py-5 border-t border-emerald-100 flex flex-col gap-3 bg-white/70">

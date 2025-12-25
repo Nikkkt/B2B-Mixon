@@ -263,7 +263,7 @@ const createFormTemplate = {
   departmentShop: null,
   discountType: null,
   managerId: null,
-  accessCategories: ["all"],
+  accessCategories: [],
   specialDiscounts: [],
   defaultDiscounts: [],
   lastContact: "",
