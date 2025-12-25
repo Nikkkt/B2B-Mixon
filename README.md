@@ -100,7 +100,10 @@ Email__Host=smtp.example.com
 Email__Port=587
 Email__User=mailer@example.com
 Email__Password=your_password
+REGISTRATION_NOTIFICATION_EMAIL=d.slobyak@mixon.ua
 ```
+
+`REGISTRATION_NOTIFICATION_EMAIL` (or `REGISTRATION_NOTIFICATION_EMAILS`) can be a comma/semicolon-separated list. If not set, admin notifications for new registrations are not sent.
 
 For the frontend, copy `.env.example` to `.env` if present or simply set:
 

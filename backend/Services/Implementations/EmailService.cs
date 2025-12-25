@@ -32,6 +32,20 @@ public class EmailService : IEmailService
             ?? "Mixon B2B";
     }
 
+    private static string? GetEnv(params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            var value = Environment.GetEnvironmentVariable(key);
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
+
     public async Task SendAsync(string to, string subject, string body)
     {
         try
@@ -44,7 +58,7 @@ public class EmailService : IEmailService
             }
 
             // If no SendGrid API key, require SMTP to be configured; otherwise fail fast
-            var host = Environment.GetEnvironmentVariable("EMAIL_HOST");
+            var host = GetEnv("EMAIL_HOST", "Email__SmtpHost", "Email__Host");
             if (string.IsNullOrWhiteSpace(host))
             {
                 _logger.LogError("EmailService: no SENDGRID_API_KEY and no EMAIL_HOST configured. Cannot send email.");
@@ -105,10 +119,10 @@ public class EmailService : IEmailService
 
     private async Task SendViaSmtpAsync(string to, string subject, string body)
     {
-        var host = Environment.GetEnvironmentVariable("EMAIL_HOST");
-        var portValue = Environment.GetEnvironmentVariable("EMAIL_PORT");
-        var username = Environment.GetEnvironmentVariable("EMAIL_USER");
-        var password = Environment.GetEnvironmentVariable("EMAIL_PASS");
+        var host = GetEnv("EMAIL_HOST", "Email__SmtpHost", "Email__Host");
+        var portValue = GetEnv("EMAIL_PORT", "Email__SmtpPort", "Email__Port");
+        var username = GetEnv("EMAIL_USER", "Email__SmtpUsername", "Email__User");
+        var password = GetEnv("EMAIL_PASS", "Email__SmtpPassword", "Email__Password");
 
         if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(portValue) || string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
         {
@@ -126,7 +140,7 @@ public class EmailService : IEmailService
 
             var mail = new MailMessage
             {
-                From = new MailAddress(username),
+                From = new MailAddress(username, _fromName),
                 Subject = subject,
                 Body = body,
                 IsBodyHtml = true

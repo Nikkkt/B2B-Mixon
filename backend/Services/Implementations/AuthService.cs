@@ -20,11 +20,16 @@ public class AuthService : IAuthService
 
     private readonly AppDbContext _db;
     private readonly IEmailService _email;
+    private readonly Microsoft.Extensions.Logging.ILogger<AuthService> _logger;
 
-    public AuthService(AppDbContext db, IEmailService email)
+    public AuthService(
+        AppDbContext db,
+        IEmailService email,
+        Microsoft.Extensions.Logging.ILogger<AuthService> logger)
     {
         _db = db;
         _email = email;
+        _logger = logger;
     }
 
     public async Task<AuthResultDto> RegisterAsync(RegisterDto dto)
@@ -73,6 +78,8 @@ public class AuthService : IAuthService
 
         await _db.Users.AddAsync(user);
         await _db.SaveChangesAsync();
+
+        await TrySendRegistrationNotificationAsync(user);
 
         var verificationCode = await CreateAndDispatchCodeAsync(user, AuthCodePurpose.EmailVerification, VerificationExpiry);
 
@@ -311,6 +318,144 @@ public class AuthService : IAuthService
         await _db.SaveChangesAsync();
 
         return await GetProfileAsync(userId);
+    }
+
+    private async Task TrySendRegistrationNotificationAsync(User user)
+    {
+        var recipients = ParseRegistrationNotificationRecipients();
+        if (recipients.Length == 0)
+        {
+            return;
+        }
+
+        var subject = $"Нова реєстрація в Mixon B2B: {user.Email}";
+        var body = BuildRegistrationNotificationEmailBody(user);
+
+        foreach (var recipient in recipients)
+        {
+            try
+            {
+                await _email.SendAsync(recipient, subject, body);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send registration notification email to {Recipient}", recipient);
+            }
+        }
+    }
+
+    private static string[] ParseRegistrationNotificationRecipients()
+    {
+        var raw = Environment.GetEnvironmentVariable("REGISTRATION_NOTIFICATION_EMAIL")
+            ?? Environment.GetEnvironmentVariable("REGISTRATION_NOTIFICATION_EMAILS");
+
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return Array.Empty<string>();
+        }
+
+        return raw
+            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(value => value.Trim().Trim('"', '\''))
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static string BuildRegistrationNotificationEmailBody(User user)
+    {
+        static string Html(string? value)
+            => System.Net.WebUtility.HtmlEncode(value ?? string.Empty);
+
+        static string HtmlOrDash(string? value)
+        {
+            var trimmed = (value ?? string.Empty).Trim();
+            return string.IsNullOrWhiteSpace(trimmed) ? "—" : Html(trimmed);
+        }
+
+        var fullName = $"{user.FirstName} {user.LastName}".Trim();
+        var roles = ConvertRolesToStrings(user.Roles);
+        var rolesLabel = roles.Count == 0
+            ? "—"
+            : string.Join(", ", roles.Select(role => Html(role)));
+
+        var createdLabel = Html(user.CreatedAt.ToString("dd.MM.yyyy HH:mm 'UTC'"));
+        var statusLabel = user.IsConfirmed ? "Підтверджено" : "Очікує підтвердження";
+
+        return $@"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='UTF-8'>
+            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+        </head>
+        <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #111827; max-width: 640px; margin: 0 auto; padding: 20px; background: #f3f4f6;'>
+            <div style='background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); padding: 28px 24px; border-radius: 14px 14px 0 0; text-align: left;'>
+                <p style='margin: 0; color: rgba(255,255,255,0.85); font-size: 13px;'>Mixon B2B</p>
+                <h1 style='margin: 6px 0 0 0; color: #ffffff; font-size: 22px; line-height: 1.25;'>Нова реєстрація користувача</h1>
+                <p style='margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;'>Створено новий акаунт. Перевірте дані та надайте доступи за потреби.</p>
+            </div>
+
+            <div style='background: #ffffff; padding: 22px 24px; border-radius: 0 0 14px 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.06);'>
+                <div style='display: inline-block; background: #eef2ff; color: #4338ca; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;'>
+                    Статус: {Html(statusLabel)}
+                </div>
+
+                <h2 style='margin: 18px 0 10px 0; font-size: 16px; color: #111827;'>Публічні дані користувача</h2>
+                <table style='width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden;'>
+                    <tbody>
+                        <tr>
+                            <td style='padding: 10px 12px; background: #f9fafb; color: #6b7280; width: 40%;'>ПІБ</td>
+                            <td style='padding: 10px 12px; font-weight: 600;'>{HtmlOrDash(fullName)}</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 10px 12px; background: #f9fafb; color: #6b7280;'>Email</td>
+                            <td style='padding: 10px 12px; font-weight: 600;'>{HtmlOrDash(user.Email)}</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 10px 12px; background: #f9fafb; color: #6b7280;'>Компанія</td>
+                            <td style='padding: 10px 12px;'>{HtmlOrDash(user.Company)}</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 10px 12px; background: #f9fafb; color: #6b7280;'>Телефон</td>
+                            <td style='padding: 10px 12px;'>{HtmlOrDash(user.Phone)}</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 10px 12px; background: #f9fafb; color: #6b7280;'>Країна</td>
+                            <td style='padding: 10px 12px;'>{HtmlOrDash(user.Country)}</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 10px 12px; background: #f9fafb; color: #6b7280;'>Місто</td>
+                            <td style='padding: 10px 12px;'>{HtmlOrDash(user.City)}</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 10px 12px; background: #f9fafb; color: #6b7280;'>Адреса</td>
+                            <td style='padding: 10px 12px;'>{HtmlOrDash(user.Address)}</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 10px 12px; background: #f9fafb; color: #6b7280;'>Ролі</td>
+                            <td style='padding: 10px 12px;'>{rolesLabel}</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 10px 12px; background: #f9fafb; color: #6b7280;'>Створено</td>
+                            <td style='padding: 10px 12px;'>{createdLabel}</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 10px 12px; background: #f9fafb; color: #6b7280;'>UserId</td>
+                            <td style='padding: 10px 12px; font-family: Consolas, monospace; font-size: 12px;'>{Html(user.Id.ToString())}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div style='margin-top: 18px; padding: 14px 14px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; color: #92400e;'>
+                    <strong>Підказка:</strong> За замовчуванням нові користувачі можуть не бачити ціни/залишки, доки їм не надано доступ до категорій.
+                </div>
+
+                <p style='margin-top: 22px; color: #6b7280; font-size: 12px;'>Це автоматичне повідомлення від Mixon B2B.</p>
+            </div>
+        </body>
+        </html>
+        ";
     }
 
     private async Task<AuthCode> CreateAndDispatchCodeAsync(User user, AuthCodePurpose purpose, TimeSpan lifetime)
