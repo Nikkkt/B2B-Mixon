@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Net.Mail;
 using System.Net.Sockets;
+using backend.DTOs.Common;
 using backend.Exceptions;
 using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
@@ -46,14 +47,31 @@ public class EmailService : IEmailService
         return null;
     }
 
-    public async Task SendAsync(string to, string subject, string body)
+    public async Task SendAsync(string to, string subject, string body, IReadOnlyCollection<FileDownloadDto>? attachments = null)
     {
+        var originalTo = to;
+        var overrideToRaw = GetEnv("EMAIL_OVERRIDE_TO", "Email__OverrideTo");
+        if (!string.IsNullOrWhiteSpace(overrideToRaw))
+        {
+            var parts = overrideToRaw.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Length > 0 && !string.IsNullOrWhiteSpace(parts[0]))
+            {
+                var overrideTo = parts[0];
+                if (!string.Equals(to, overrideTo, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogInformation("EmailService: overriding recipient {OriginalTo} -> {OverrideTo}", to, overrideTo);
+                    to = overrideTo;
+                    subject = $"[to:{originalTo}] {subject}";
+                }
+            }
+        }
+
         try
         {
             if (!string.IsNullOrWhiteSpace(_sendGridApiKey))
             {
                 _logger.LogInformation("EmailService: sending via SendGrid to {To}", to);
-                await SendViaSendGridAsync(to, subject, body);
+                await SendViaSendGridAsync(to, subject, body, attachments);
                 return;
             }
 
@@ -66,7 +84,7 @@ public class EmailService : IEmailService
             }
 
             _logger.LogInformation("EmailService: sending via SMTP to {To}", to);
-            await SendViaSmtpAsync(to, subject, body);
+            await SendViaSmtpAsync(to, subject, body, attachments);
         }
         catch (Exception ex)
         {
@@ -75,7 +93,7 @@ public class EmailService : IEmailService
         }
     }
 
-    private async Task SendViaSendGridAsync(string to, string subject, string body)
+    private async Task SendViaSendGridAsync(string to, string subject, string body, IReadOnlyCollection<FileDownloadDto>? attachments)
     {
         if (string.IsNullOrWhiteSpace(_fromEmail))
         {
@@ -83,21 +101,40 @@ public class EmailService : IEmailService
             throw new AuthException("Email service is not configured.", StatusCodes.Status503ServiceUnavailable);
         }
 
-        var payload = new
+        var payload = new Dictionary<string, object>
         {
-            personalizations = new[]
+            ["personalizations"] = new[]
             {
                 new { to = new[] { new { email = to } } }
             },
-            from = new { email = _fromEmail, name = _fromName },
-            subject,
-            content = new[]
+            ["from"] = new { email = _fromEmail, name = _fromName },
+            ["subject"] = subject,
+            ["content"] = new[]
             {
                 // SendGrid requires text/plain first, then text/html
                 new { type = "text/plain", value = StripHtml(body) },
                 new { type = "text/html", value = body }
             }
         };
+
+        if (attachments != null && attachments.Count > 0)
+        {
+            var normalized = attachments
+                .Where(file => file != null && file.Content.Length > 0)
+                .Select(file => new
+                {
+                    content = Convert.ToBase64String(file.Content),
+                    type = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                    filename = string.IsNullOrWhiteSpace(file.FileName) ? "attachment" : file.FileName,
+                    disposition = "attachment"
+                })
+                .ToArray();
+
+            if (normalized.Length > 0)
+            {
+                payload["attachments"] = normalized;
+            }
+        }
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.sendgrid.com/v3/mail/send")
         {
@@ -117,7 +154,7 @@ public class EmailService : IEmailService
         _logger.LogInformation("SendGrid email sent to {To} with status {StatusCode}", to, response.StatusCode);
     }
 
-    private async Task SendViaSmtpAsync(string to, string subject, string body)
+    private async Task SendViaSmtpAsync(string to, string subject, string body, IReadOnlyCollection<FileDownloadDto>? attachments)
     {
         var host = GetEnv("EMAIL_HOST", "Email__SmtpHost", "Email__Host");
         var portValue = GetEnv("EMAIL_PORT", "Email__SmtpPort", "Email__Port");
@@ -150,6 +187,27 @@ public class EmailService : IEmailService
             // Add plain-text alternate view for clients that block HTML
             var plain = AlternateView.CreateAlternateViewFromString(StripHtml(body), null, "text/plain");
             mail.AlternateViews.Add(plain);
+
+            if (attachments != null && attachments.Count > 0)
+            {
+                foreach (var file in attachments)
+                {
+                    if (file == null || file.Content.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    var contentType = string.IsNullOrWhiteSpace(file.ContentType)
+                        ? "application/octet-stream"
+                        : file.ContentType;
+
+                    var fileName = string.IsNullOrWhiteSpace(file.FileName)
+                        ? "attachment"
+                        : file.FileName;
+
+                    mail.Attachments.Add(new Attachment(new MemoryStream(file.Content), fileName, contentType));
+                }
+            }
 
             await client.SendMailAsync(mail);
         }

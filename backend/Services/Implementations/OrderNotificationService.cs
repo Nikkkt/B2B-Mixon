@@ -1,10 +1,12 @@
 using backend.Data;
+using backend.DTOs.Common;
 using backend.Enums;
 using backend.Models;using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Net;
 using System.Net.Mail;
 
+using backend.Services.Helpers;
 using backend.Services.Interfaces;
 
 namespace backend.Services.Implementations;
@@ -15,17 +17,20 @@ public class OrderNotificationService : IOrderNotificationService
     private readonly IConfiguration _configuration;
     private readonly ILogger<OrderNotificationService> _logger;
     private readonly IEmailService _emailService;
+    private readonly IOrderService _orderService;
 
     public OrderNotificationService(
         AppDbContext db, 
         IConfiguration configuration,
         ILogger<OrderNotificationService> logger,
-        IEmailService emailService)
+        IEmailService emailService,
+        IOrderService orderService)
     {
         _db = db;
         _configuration = configuration;
         _logger = logger;
         _emailService = emailService;
+        _orderService = orderService;
     }
 
     public async Task SendOrderNotificationsAsync(Guid orderId)
@@ -47,10 +52,21 @@ public class OrderNotificationService : IOrderNotificationService
                 return;
             }
 
+            IReadOnlyCollection<FileDownloadDto>? attachments = null;
+            try
+            {
+                var excel = await _orderService.ExportOrderToExcelAsync(order.CreatedByUserId, order.Id);
+                attachments = new[] { excel };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to export order {OrderNumber} to Excel for email attachment", order.OrderNumber);
+            }
+
             // Send notifications sequentially to avoid DbContext concurrency issues
-            await SendUserNotificationAsync(order); // Send to user who created order
-            await SendUserManagerNotificationAsync(order); // Send to user's manager (optional)
-            await SendDepartmentWorkersNotificationAsync(order); // Send to all shipping point workers
+            await SendUserNotificationAsync(order, attachments); // Send to user who created order
+            await SendUserManagerNotificationAsync(order, attachments); // Send to user's manager (optional)
+            await SendDepartmentWorkersNotificationAsync(order, attachments); // Send to all shipping point workers
         }
         catch (Exception ex)
         {
@@ -59,7 +75,7 @@ public class OrderNotificationService : IOrderNotificationService
         }
     }
 
-    private async Task SendUserNotificationAsync(Order order)
+    private async Task SendUserNotificationAsync(Order order, IReadOnlyCollection<FileDownloadDto>? attachments)
     {
         try
         {
@@ -76,7 +92,7 @@ public class OrderNotificationService : IOrderNotificationService
             var subject = $"Підтвердження замовлення #{order.OrderNumber}";
             var body = GenerateCustomerEmailBody(order);
 
-            await SendEmailAsync(userEmail, subject, body);
+            await SendEmailAsync(userEmail, subject, body, attachments);
             await LogNotificationAsync(order.Id, NotificationRecipientType.Customer, 
                 userEmail, true, null);
 
@@ -90,7 +106,7 @@ public class OrderNotificationService : IOrderNotificationService
         }
     }
 
-    private async Task SendUserManagerNotificationAsync(Order order)
+    private async Task SendUserManagerNotificationAsync(Order order, IReadOnlyCollection<FileDownloadDto>? attachments)
     {
         try
         {
@@ -106,7 +122,7 @@ public class OrderNotificationService : IOrderNotificationService
             var subject = $"Нове замовлення #{order.OrderNumber} від співробітника";
             var body = GenerateManagerEmailBody(order);
 
-            await SendEmailAsync(userManager.Email, subject, body);
+            await SendEmailAsync(userManager.Email, subject, body, attachments);
             await LogNotificationAsync(order.Id, NotificationRecipientType.Manager, 
                 userManager.Email, true, null);
 
@@ -119,7 +135,7 @@ public class OrderNotificationService : IOrderNotificationService
         }
     }
 
-    private async Task SendDepartmentWorkersNotificationAsync(Order order)
+    private async Task SendDepartmentWorkersNotificationAsync(Order order, IReadOnlyCollection<FileDownloadDto>? attachments)
     {
         try
         {
@@ -156,7 +172,7 @@ public class OrderNotificationService : IOrderNotificationService
             {
                 try
                 {
-                    await SendEmailAsync(worker.Email, subject, body);
+                    await SendEmailAsync(worker.Email, subject, body, attachments);
                     await LogNotificationAsync(order.Id, NotificationRecipientType.ShippingPoint, 
                         worker.Email, true, null);
                     
@@ -176,10 +192,10 @@ public class OrderNotificationService : IOrderNotificationService
         }
     }
 
-    private async Task SendEmailAsync(string toEmail, string subject, string body)
+    private async Task SendEmailAsync(string toEmail, string subject, string body, IReadOnlyCollection<FileDownloadDto>? attachments = null)
     {
         // Delegate to shared email service (supports SendGrid or SMTP via env/config)
-        await _emailService.SendAsync(toEmail, subject, body);
+        await _emailService.SendAsync(toEmail, subject, body, attachments);
     }
 
     private string GenerateCustomerEmailBody(Order order)
@@ -188,7 +204,7 @@ public class OrderNotificationService : IOrderNotificationService
             <tr>
                 <td style='padding: 10px; border-bottom: 1px solid #eee;'>{item.ProductCodeSnapshot}</td>
                 <td style='padding: 10px; border-bottom: 1px solid #eee;'>{item.ProductNameSnapshot}</td>
-                <td style='padding: 10px; border-bottom: 1px solid #eee; text-align: right;'>{item.Quantity:F2}</td>
+                <td style='padding: 10px; border-bottom: 1px solid #eee; text-align: right;'>{QuantityFormatter.Format(item.Quantity, 2)}</td>
                 <td style='padding: 10px; border-bottom: 1px solid #eee; text-align: right;'>{item.PriceWithDiscountSnapshot:F2} грн</td>
                 <td style='padding: 10px; border-bottom: 1px solid #eee; text-align: right;'>{item.LineTotal:F2} грн</td>
             </tr>
@@ -292,7 +308,7 @@ public class OrderNotificationService : IOrderNotificationService
             <tr>
                 <td style='padding: 8px; border-bottom: 1px solid #ddd;'>{item.ProductCodeSnapshot}</td>
                 <td style='padding: 8px; border-bottom: 1px solid #ddd;'>{item.ProductNameSnapshot}</td>
-                <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: right;'>{item.Quantity:F2}</td>
+                <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: right;'>{QuantityFormatter.Format(item.Quantity, 2)}</td>
                 <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: right;'>{item.WeightSnapshot * item.Quantity:F3} кг</td>
                 <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: right;'>{item.VolumeSnapshot * item.Quantity:F3} м³</td>
             </tr>
@@ -320,6 +336,7 @@ public class OrderNotificationService : IOrderNotificationService
                     <p><strong>Співробітник:</strong> {order.CreatedByUser?.FirstName} {order.CreatedByUser?.LastName}</p>
                     <p><strong>Email:</strong> {order.CreatedByUser?.Email}</p>
                     <p><strong>Тип:</strong> {order.OrderType}</p>
+                    {(!string.IsNullOrWhiteSpace(order.Comment) ? $"<p><strong>Коментар:</strong> {order.Comment}</p>" : "")}
                     <p><strong>Загальна вага:</strong> {order.TotalWeight:F3} кг</p>
                     <p><strong>Загальний об'єм:</strong> {order.TotalVolume:F3} м³</p>
                 </div>

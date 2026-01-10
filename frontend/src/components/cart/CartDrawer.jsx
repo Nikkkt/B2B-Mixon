@@ -2,6 +2,13 @@ import { useNavigate } from "react-router-dom";
 import { FaTrashAlt } from "react-icons/fa";
 import { useCart } from "../../context/CartContext.jsx";
 
+const formatQuantity = (value) =>
+  Number(value ?? 0).toLocaleString("uk-UA", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+    useGrouping: false,
+  });
+
 export default function CartDrawer() {
   const {
     items,
@@ -115,6 +122,7 @@ export default function CartDrawer() {
                     type="number"
                     min="0"
                     step="0.01"
+                    inputMode="decimal"
                     value={item.quantity}
                     onChange={(event) => updateItemQuantity(item.id, event.target.value)}
                     className="w-24 border rounded-md px-2 py-1 text-center"
@@ -130,7 +138,7 @@ export default function CartDrawer() {
         <footer className="px-6 py-5 border-t space-y-4 bg-gray-50">
           {hasItems && (
             <div className="space-y-2 text-sm text-gray-700">
-              <div className="flex justify-between"><span>Загальна кількість, од.:</span><span>{totalQuantity.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span>Загальна кількість, од.:</span><span>{formatQuantity(totalQuantity)}</span></div>
               <div className="flex justify-between"><span>Загальна вага, кг:</span><span>{totalWeight.toFixed(3)}</span></div>
               <div className="flex justify-between"><span>Загальний обʼєм, м³:</span><span>{totalVolume.toFixed(3)}</span></div>
               {canSeePricing && (

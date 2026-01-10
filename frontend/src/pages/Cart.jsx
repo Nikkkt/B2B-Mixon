@@ -6,6 +6,13 @@ import { useCart } from "../context/CartContext.jsx";
 import { useAuth } from "../context/AuthContext";
 import { createOrder } from "../api/orderManagementApi";
 
+const formatQuantity = (value) =>
+  Number(value ?? 0).toLocaleString("uk-UA", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+    useGrouping: false,
+  });
+
 const paymentOptions = [
   { value: "Готівковий", label: "Готівковий" },
   { value: "Безготівковий", label: "Безготівковий" },
@@ -53,7 +60,7 @@ export default function Cart() {
 
   const totals = useMemo(
     () => ({
-      quantity: totalQuantity.toFixed(2),
+      quantity: formatQuantity(totalQuantity),
       originalPrice: totalOriginalPrice.toFixed(2),
       discountedPrice: totalDiscountedPrice.toFixed(2),
       weight: totalWeight.toFixed(3),
@@ -196,9 +203,8 @@ export default function Cart() {
                             <input
                               type="number"
                               min="0"
-                              step="1"
-                              pattern="\\d*"
-                              inputMode="numeric"
+                              step="0.01"
+                              inputMode="decimal"
                               value={item.quantity}
                               onChange={(event) => updateItemQuantity(item.id, event.target.value)}
                               className="w-24 rounded-xl border border-gray-200 bg-white px-3 py-1 text-right text-sm"
@@ -276,9 +282,8 @@ export default function Cart() {
                       <input
                         type="number"
                         min="0"
-                        step="1"
-                        pattern="\\d*"
-                        inputMode="numeric"
+                        step="0.01"
+                        inputMode="decimal"
                         value={item.quantity}
                         onChange={(event) => updateItemQuantity(item.id, event.target.value)}
                         className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-right text-sm"

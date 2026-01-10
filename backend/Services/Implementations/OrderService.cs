@@ -18,18 +18,15 @@ public class OrderService : IOrderService
 {
     private readonly AppDbContext _db;
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IOrderNotificationService _notificationService;
     private readonly IUserDiscountService _userDiscountService;
     private static bool _questPdfLicenseConfigured;
 
     public OrderService(
         AppDbContext db,
-        IOrderNotificationService notificationService,
         IServiceScopeFactory scopeFactory,
         IUserDiscountService userDiscountService)
     {
         _db = db;
-        _notificationService = notificationService;
         _scopeFactory = scopeFactory;
         _userDiscountService = userDiscountService;
     }
@@ -538,6 +535,7 @@ public class OrderService : IOrderService
             worksheet.Cell(row, 4).Value = item.DiscountPercent;
             worksheet.Cell(row, 5).Value = item.PriceWithDiscount;
             worksheet.Cell(row, 6).Value = item.Quantity;
+            worksheet.Cell(row, 6).Style.NumberFormat.Format = "0.##";
             worksheet.Cell(row, 7).Value = item.LineTotal;
             row++;
         }
@@ -546,6 +544,7 @@ public class OrderService : IOrderService
 
         worksheet.Cell(row, 5).Value = "Підсумок";
         worksheet.Cell(row, 6).Value = order.Totals.TotalQuantity;
+        worksheet.Cell(row, 6).Style.NumberFormat.Format = "0.##";
         worksheet.Cell(row, 7).Value = order.Totals.TotalDiscountedPrice;
         worksheet.Cell(row, 5).Style.Font.SetBold();
         worksheet.Cell(row, 7).Style.Font.SetBold();

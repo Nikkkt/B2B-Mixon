@@ -91,7 +91,8 @@ export function CartProvider({ children }) {
         return;
       }
 
-      const quantity = Number(rawQuantity);
+      const quantityValue = String(rawQuantity ?? "").trim().replace(",", ".");
+      const quantity = Number.parseFloat(quantityValue);
       if (quantity <= 0 || isNaN(quantity)) {
         return;
       }
@@ -130,7 +131,8 @@ export function CartProvider({ children }) {
     async (cartItemId, rawQuantity) => {
       if (!user) return;
 
-      const quantity = Number.parseInt(rawQuantity, 10);
+      const quantityValue = String(rawQuantity ?? "").trim().replace(",", ".");
+      const quantity = Number.parseFloat(quantityValue);
       if (!Number.isFinite(quantity) || quantity <= 0) {
         // If quantity is 0 or less, remove the item
         await removeItem(cartItemId);

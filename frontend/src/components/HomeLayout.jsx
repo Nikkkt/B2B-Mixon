@@ -11,6 +11,13 @@ import { useCart } from "../context/CartContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import CartDrawer from "./cart/CartDrawer.jsx";
 
+const formatQuantity = (value) =>
+  Number(value ?? 0).toLocaleString("uk-UA", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+    useGrouping: false,
+  });
+
 const resolveRole = (role) => {
   if (typeof role === "string") {
     return role.toLowerCase();
@@ -159,7 +166,7 @@ export default function HomeLayout({children}) {
                 <span>Корзина</span>
                 {totalQuantity > 0 && (
                   <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                    {totalQuantity}
+                    {formatQuantity(totalQuantity)}
                   </span>
                 )}
               </button>
