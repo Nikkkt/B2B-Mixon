@@ -48,8 +48,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy("FrontendPolicy", policy =>
     {
         var origins = corsOrigins?.Length > 0
-            ? corsOrigins.Append("https://b2-b-mixon.vercel.app").Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
-            : new[] { "https://b2-b-mixon.vercel.app" };
+            ? corsOrigins.Append("https://b2b.mixon.ua").Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
+            : new[] { "https://b2b.mixon.ua" };
 
         policy.WithOrigins(origins)
             .AllowAnyHeader()
