@@ -100,7 +100,7 @@ export default function HomeLayout({children}) {
         )}
 
         <aside 
-          className={`w-64 bg-gray-200 text-gray-900 p-4 border-r border-gray-300
+          className={`w-64 bg-gray-300 text-gray-900 p-4 border-r border-gray-400
                      fixed h-full z-20 
                      transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
                      transition-transform duration-300 ease-in-out 
