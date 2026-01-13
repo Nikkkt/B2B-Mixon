@@ -105,7 +105,7 @@ export default function HomeLayout({children}) {
         )}
 
         <aside 
-          className={`w-64 bg-gray-300 text-gray-900 p-4 overflow-y-auto custom-scrollbar
+          className={`w-64 bg-gray-200 text-gray-900 p-4 overflow-y-auto custom-scrollbar
                      fixed h-full z-20 
                      transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
                      transition-transform duration-300 ease-in-out 
