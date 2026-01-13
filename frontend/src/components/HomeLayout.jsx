@@ -105,11 +105,11 @@ export default function HomeLayout({children}) {
         )}
 
         <aside 
-          className={`w-64 bg-gray-200 text-gray-900 p-4
+          className={`w-64 bg-gray-300 text-gray-900 p-4 overflow-y-auto custom-scrollbar
                      fixed h-full z-20 
                      transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
                      transition-transform duration-300 ease-in-out 
-                     md:sticky md:top-0 md:h-screen md:translate-x-0`}
+                     md:sticky md:top-0 md:h-screen md:translate-x-0 md:max-h-screen`}
         >
           <div className="mb-6 mt-6 flex justify-between items-center">
             <img src={logo} alt="Logo" className="h-18 w-auto" />

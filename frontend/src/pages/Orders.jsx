@@ -444,7 +444,7 @@ export default function Orders() {
                   type="button"
                   onClick={handleBulkAddToCart}
                   disabled={!hasBulkSelection}
-                  className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-md transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-gray-300"
+                  className="btn-modern btn-modern--primary btn-modern--sm disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <FaShoppingCart className="text-sm" />
                   Додати всі
@@ -513,7 +513,7 @@ export default function Orders() {
                         <button
                           type="button"
                           onClick={() => handleAddToCart(product.id)}
-                          className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 transition hover:border-blue-200 hover:bg-blue-100"
+                          className="btn-modern btn-modern--outline btn-modern--sm"
                           title="Додати до кошика"
                         >
                           <FaShoppingCart />
@@ -567,7 +567,7 @@ export default function Orders() {
                     <button
                       type="button"
                       onClick={() => handleAddToCart(product.id)}
-                      className="flex-1 rounded-xl bg-blue-600 p-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 flex items-center justify-center gap-2"
+                      className="btn-modern btn-modern--primary btn-modern--block"
                       title="Додати до кошика"
                     >
                       <FaShoppingCart />

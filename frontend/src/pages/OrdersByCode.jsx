@@ -321,7 +321,7 @@ export default function OrdersByCode() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="rounded-md bg-blue-600 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:bg-gray-400"
+                className="btn-modern btn-modern--primary"
               >
                 {isLoading ? "Завантаження..." : "Показати"}
               </button>
@@ -374,7 +374,7 @@ export default function OrdersByCode() {
               </div>
             </div>
           </div>
-          <button type="submit" disabled={isLoading} className="mt-2 self-end rounded-md bg-emerald-600 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:bg-gray-400">
+          <button type="submit" disabled={isLoading} className="mt-2 self-end btn-modern btn-modern--primary">
             {isLoading ? "Завантаження..." : "Показати"}
           </button>
         </form>
@@ -502,7 +502,7 @@ export default function OrdersByCode() {
               <button 
                 type="button"
                 onClick={handleFinalAddToCart}
-                className="bg-green-600 text-white py-2 px-6 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 flex items-center gap-2"
+                className="btn-modern btn-modern--primary"
               >
                 <FaShoppingCart />
                 Додати до замовлення
