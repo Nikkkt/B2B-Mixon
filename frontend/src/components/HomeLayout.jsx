@@ -144,7 +144,7 @@ export default function HomeLayout({children}) {
         </aside>
 
         <div className="flex-1 flex flex-col w-full md:w-auto min-w-0">
-          <header className="bg-gray-200 text-gray-900 border-b border-gray-300 p-4 flex justify-between items-center relative">
+          <header className="bg-gray-300 text-gray-900 border-b border-gray-400 p-4 flex justify-between items-center relative">
             
             <button 
               className="text-gray-900 text-2xl md:hidden"
@@ -194,7 +194,7 @@ export default function HomeLayout({children}) {
 
           <CartDrawer />
           
-          <footer className="bg-gray-200 text-gray-900 border-t border-gray-300 p-4 text-center text-sm">
+          <footer className="bg-gray-300 text-gray-900 border-t border-gray-400 p-4 text-center text-sm">
             2025 Mixon <br/>
             Made by <a href="https://github.com/Nikkkt" className="text-blue-700 hover:underline" target="_blank" rel="noopener noreferrer">Nikita Terpilovskyi</a>
           </footer>
