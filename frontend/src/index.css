@@ -85,6 +85,9 @@
     @apply text-gray-700 bg-transparent;
   }
 
+}
+
+@layer utilities {
   button[class*="bg-"] {
     background-color: #d9d9d9 !important;
     border: 1px solid #a6a6a6 !important;
@@ -205,9 +208,7 @@
     background-color: var(--mono-surface) !important;
     color: var(--mono-text) !important;
   }
-}
 
-@layer utilities {
   .custom-scrollbar::-webkit-scrollbar {
     width: 8px;
     height: 10px;
