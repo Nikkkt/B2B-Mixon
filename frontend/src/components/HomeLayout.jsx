@@ -57,6 +57,11 @@ export default function HomeLayout({children}) {
   const hasAdminRole = userRole === "admin" || userRoles.includes("admin");
   const hasDepartmentRole = userRole === "department" || userRoles.includes("department");
 
+  const navLinkClass =
+    "group flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-semibold text-gray-800 transition-all duration-200 hover:bg-gray-200/80 hover:text-gray-900 hover:translate-x-1";
+  const navIconClass =
+    "flex h-8 w-8 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition-colors duration-200 group-hover:bg-gray-900 group-hover:text-white";
+
   const getPageTitle = () => {
     switch (location.pathname) {
       case "/home": return "Головна - Онлайн замовлення";
@@ -114,29 +119,93 @@ export default function HomeLayout({children}) {
           </div>
           
           <nav>
-            <h3 className="mt-4 mb-4 text-xs font-semibold text-gray-600 uppercase">Акаунт</h3>
-            <ul className="space-y-1 mb-4">
-              <li><Link to="/orders" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaShoppingCart className="mr-2" />Замовлення товарів</Link></li>
-              <li><Link to="/orders-by-code" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaBarcode className="mr-2" />Замовлення по кодах</Link></li>
-              <li><Link to="/view-availability" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaEye className="mr-2" />Перегляд наявності</Link></li>
-              <li><Link to="/view-availability-by-group" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaList className="mr-2" />Перегляд наявності по групах</Link></li>
-              <li><Link to="/view-availability-by-code" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaCode className="mr-2" />Перегляд наявності по коду</Link></li>
+            <h3 className="mt-4 mb-4 text-[11px] font-semibold tracking-[0.3em] text-gray-500 uppercase">
+              Акаунт
+            </h3>
+            <ul className="space-y-2 mb-6">
+              <li>
+                <Link to="/orders" onClick={closeMobileSidebar} className={navLinkClass}>
+                  <span className={navIconClass}><FaShoppingCart /></span>
+                  <span>Замовлення товарів</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/orders-by-code" onClick={closeMobileSidebar} className={navLinkClass}>
+                  <span className={navIconClass}><FaBarcode /></span>
+                  <span>Замовлення по кодах</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/view-availability" onClick={closeMobileSidebar} className={navLinkClass}>
+                  <span className={navIconClass}><FaEye /></span>
+                  <span>Перегляд наявності</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/view-availability-by-group" onClick={closeMobileSidebar} className={navLinkClass}>
+                  <span className={navIconClass}><FaList /></span>
+                  <span>Перегляд наявності по групах</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/view-availability-by-code" onClick={closeMobileSidebar} className={navLinkClass}>
+                  <span className={navIconClass}><FaCode /></span>
+                  <span>Перегляд наявності по коду</span>
+                </Link>
+              </li>
               {(hasAdminRole || hasDepartmentRole) && (
-                <li><Link to="/availability-download" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaFileUpload className="mr-2" />Завантаження наявності</Link></li>
+                <li>
+                  <Link to="/availability-download" onClick={closeMobileSidebar} className={navLinkClass}>
+                    <span className={navIconClass}><FaFileUpload /></span>
+                    <span>Завантаження наявності</span>
+                  </Link>
+                </li>
               )}
-              <li><Link to="/order-history" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaHistory className="mr-2" />Історія замовлень</Link></li>
+              <li>
+                <Link to="/order-history" onClick={closeMobileSidebar} className={navLinkClass}>
+                  <span className={navIconClass}><FaHistory /></span>
+                  <span>Історія замовлень</span>
+                </Link>
+              </li>
             </ul>
 
             {hasAdminRole && (
               <>
-                <hr className="border-gray-300 my-2" />
-                <h3 className="mt-4 mb-4 text-xs font-semibold text-gray-600 uppercase">Адмін</h3>
-                <ul className="space-y-1">
-                  <li><Link to="/upload-products" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaUpload className="mr-2" />Завантаження товарів</Link></li>
-                  <li><Link to="/users" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaUsers className="mr-2" />Користувачі</Link></li>
-                  <li><Link to="/departments" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaBuilding className="mr-2" />Відділи</Link></li>
-                  <li><Link to="/directions" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaMapMarkerAlt className="mr-2" />Направлення</Link></li>
-                  <li><Link to="/product-groups" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaLayerGroup className="mr-2" />Групи товарів</Link></li>
+                <div className="my-4 h-px w-full bg-gradient-to-r from-transparent via-gray-400/40 to-transparent" />
+                <h3 className="mt-2 mb-4 text-[11px] font-semibold tracking-[0.3em] text-gray-500 uppercase">
+                  Адмін
+                </h3>
+                <ul className="space-y-2">
+                  <li>
+                    <Link to="/upload-products" onClick={closeMobileSidebar} className={navLinkClass}>
+                      <span className={navIconClass}><FaUpload /></span>
+                      <span>Завантаження товарів</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/users" onClick={closeMobileSidebar} className={navLinkClass}>
+                      <span className={navIconClass}><FaUsers /></span>
+                      <span>Користувачі</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/departments" onClick={closeMobileSidebar} className={navLinkClass}>
+                      <span className={navIconClass}><FaBuilding /></span>
+                      <span>Відділи</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/directions" onClick={closeMobileSidebar} className={navLinkClass}>
+                      <span className={navIconClass}><FaMapMarkerAlt /></span>
+                      <span>Направлення</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/product-groups" onClick={closeMobileSidebar} className={navLinkClass}>
+                      <span className={navIconClass}><FaLayerGroup /></span>
+                      <span>Групи товарів</span>
+                    </Link>
+                  </li>
                 </ul>
               </>
             )}
@@ -144,7 +213,7 @@ export default function HomeLayout({children}) {
         </aside>
 
         <div className="flex-1 flex flex-col w-full md:w-auto min-w-0">
-          <header className="bg-gray-300 text-gray-900 p-4 flex justify-between items-center relative">
+          <header className="bg-gray-300 text-gray-900 p-4 flex justify-between items-center relative shadow-sm">
             
             <button 
               className="text-gray-900 text-2xl md:hidden"
@@ -173,15 +242,23 @@ export default function HomeLayout({children}) {
 
               <div className="relative text-gray-900">
                 <FaUserCircle
-                  className="text-2xl cursor-pointer"
+                  className="text-2xl cursor-pointer transition-transform duration-200 hover:scale-110"
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 />
                 {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white text-gray-800 border border-gray-300 rounded shadow-lg z-30"> {/* Збільшено z-index */}
-                  <Link to="/home" onClick={() => setIsUserMenuOpen(false)} className="block px-4 py-2 hover:bg-gray-100 flex items-center"><FaHome className="mr-2" />Головна</Link>
-                  <Link to="/profile" onClick={() => setIsUserMenuOpen(false)} className="block px-4 py-2 hover:bg-gray-100 flex items-center"><FaRegUser className="mr-2" />Профіль</Link>
-                  <Link to="/cart" onClick={() => setIsUserMenuOpen(false)} className="block px-4 py-2 hover:bg-gray-100 flex items-center"><FaShoppingBag className="mr-2" />Корзина</Link>
-                  <button onClick={handleLogout} className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center"><FaSignOutAlt className="mr-2" />Вийти</button>
+                <div className="absolute right-0 mt-3 w-56 rounded-2xl border border-gray-200 bg-white/95 p-2 shadow-xl backdrop-blur z-30">
+                  <Link to="/home" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100">
+                    <FaHome /> Головна
+                  </Link>
+                  <Link to="/profile" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100">
+                    <FaRegUser /> Профіль
+                  </Link>
+                  <Link to="/cart" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100">
+                    <FaShoppingBag /> Корзина
+                  </Link>
+                  <button onClick={handleLogout} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold text-gray-900 transition hover:bg-gray-100">
+                    <FaSignOutAlt /> Вийти
+                  </button>
                 </div>
               )}
               </div>

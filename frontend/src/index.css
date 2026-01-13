@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 @tailwind base;
 @tailwind components;
@@ -26,10 +27,24 @@
   body {
     background-color: var(--mono-background);
     color: var(--mono-text);
+    font-family: "Space Grotesk", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-feature-settings: "liga" 1, "kern" 1;
+    letter-spacing: -0.005em;
+  }
+
+  ::selection {
+    background-color: var(--mono-accent);
+    color: #fff;
   }
 
   a {
     color: var(--mono-accent);
+    text-decoration: none;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
 }
 
