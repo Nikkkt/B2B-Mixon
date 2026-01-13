@@ -3,6 +3,30 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --mono-background: #f4f4f4;
+    --mono-surface: #ffffff;
+    --mono-panel: #f8f9fa;
+    --mono-panel-muted: #e8e8e8;
+    --mono-border: #d1d5db;
+    --mono-border-strong: #9ca3af;
+    --mono-text: #1f2933;
+    --mono-text-muted: #4b5563;
+    --mono-text-soft: #6b7280;
+    --mono-accent: #0f172a;
+  }
+
+  body {
+    background-color: var(--mono-background);
+    color: var(--mono-text);
+  }
+
+  a {
+    color: var(--mono-accent);
+  }
+}
+
 @layer components {
   .legacy-btn {
     @apply inline-flex items-center justify-center gap-2 rounded-md border border-gray-500 bg-gray-300 px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm transition-colors duration-200 ease-out;
@@ -21,19 +45,19 @@
   }
 
   .legacy-btn--primary {
-    @apply border-blue-900 bg-blue-800 text-white;
+    @apply border-gray-800 bg-gray-900 text-white;
   }
 
   .legacy-btn--primary:hover:not(:disabled) {
-    @apply bg-blue-700 text-white;
+    @apply bg-gray-800 text-white;
   }
 
   .legacy-btn--danger {
-    @apply border-red-800 bg-red-700 text-white;
+    @apply border-gray-700 bg-gray-800 text-white;
   }
 
   .legacy-btn--danger:hover:not(:disabled) {
-    @apply bg-red-600 text-white;
+    @apply bg-gray-700 text-white;
   }
 
   .legacy-btn--ghost {
@@ -54,11 +78,11 @@
   }
 
   .legacy-btn--link {
-    @apply border-transparent bg-transparent text-blue-900 underline underline-offset-2;
+    @apply border-transparent bg-transparent text-gray-900 underline underline-offset-2;
   }
 
   .legacy-btn--link:hover:not(:disabled) {
-    @apply text-blue-800 bg-transparent;
+    @apply text-gray-700 bg-transparent;
   }
 
   button[class*="bg-"] {
@@ -78,6 +102,108 @@
     color: #6b7280 !important;
     border-color: #c5c5c5 !important;
     opacity: 0.8;
+  }
+
+  /* Global monochrome overrides */
+  [class*="bg-blue"],
+  [class*="bg-emerald"],
+  [class*="bg-indigo"],
+  [class*="bg-violet"],
+  [class*="bg-orange"],
+  [class*="bg-green"],
+  [class*="bg-red"],
+  [class*="bg-amber"],
+  [class*="bg-teal"],
+  [class*="bg-rose"],
+  [class*="bg-yellow"] {
+    background-color: var(--mono-panel) !important;
+    color: var(--mono-text) !important;
+  }
+
+  [class*="text-blue"],
+  [class*="text-emerald"],
+  [class*="text-indigo"],
+  [class*="text-violet"],
+  [class*="text-orange"],
+  [class*="text-green"],
+  [class*="text-red"],
+  [class*="text-amber"],
+  [class*="text-teal"],
+  [class*="text-rose"],
+  [class*="text-yellow"] {
+    color: var(--mono-text) !important;
+  }
+
+  [class*="border-blue"],
+  [class*="border-emerald"],
+  [class*="border-indigo"],
+  [class*="border-violet"],
+  [class*="border-orange"],
+  [class*="border-green"],
+  [class*="border-red"],
+  [class*="border-amber"],
+  [class*="border-teal"],
+  [class*="border-rose"],
+  [class*="border-yellow"] {
+    border-color: var(--mono-border) !important;
+  }
+
+  [class*="from-blue"],
+  [class*="from-emerald"],
+  [class*="from-indigo"],
+  [class*="from-violet"],
+  [class*="from-orange"],
+  [class*="from-green"],
+  [class*="from-red"],
+  [class*="from-amber"],
+  [class*="from-teal"],
+  [class*="from-rose"],
+  [class*="from-yellow"],
+  [class*="via-blue"],
+  [class*="via-emerald"],
+  [class*="via-indigo"],
+  [class*="via-violet"],
+  [class*="via-orange"],
+  [class*="via-green"],
+  [class*="via-red"],
+  [class*="via-amber"],
+  [class*="via-teal"],
+  [class*="via-rose"],
+  [class*="via-yellow"],
+  [class*="to-blue"],
+  [class*="to-emerald"],
+  [class*="to-indigo"],
+  [class*="to-violet"],
+  [class*="to-orange"],
+  [class*="to-green"],
+  [class*="to-red"],
+  [class*="to-amber"],
+  [class*="to-teal"],
+  [class*="to-rose"],
+  [class*="to-yellow"] {
+    background-image: none !important;
+    background-color: var(--mono-panel) !important;
+  }
+
+  [class*="shadow-blue"],
+  [class*="shadow-emerald"],
+  [class*="shadow-indigo"],
+  [class*="shadow-violet"],
+  [class*="shadow-orange"],
+  [class*="shadow-green"],
+  [class*="shadow-red"],
+  [class*="shadow-amber"],
+  [class*="shadow-teal"],
+  [class*="shadow-rose"],
+  [class*="shadow-yellow"] {
+    box-shadow: 0 1px 2px rgba(15, 15, 15, 0.08) !important;
+  }
+
+  .mono-panel,
+  [class*="bg-white/"],
+  [class*="bg-gray"] {
+    background-color: var(--mono-surface) !important;
+    color: var(--mono-text) !important;
   }
 }
 
