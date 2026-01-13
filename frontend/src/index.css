@@ -341,10 +341,10 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-blue-950;
+    @apply bg-gray-800;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-blue-800;
+    @apply bg-gray-600;
   }
 }
