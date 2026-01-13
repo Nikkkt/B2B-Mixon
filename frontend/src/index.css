@@ -3,21 +3,99 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer utilities {
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 8px;
-      height: 10px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-track {
-      @apply bg-gray-100;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      @apply bg-blue-950;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      @apply bg-blue-800;
-    }
+@layer components {
+  .legacy-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-gray-500 bg-gray-300 px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm transition-colors duration-200 ease-out;
   }
+
+  .legacy-btn:hover:not(:disabled) {
+    @apply bg-gray-200 text-gray-900;
+  }
+
+  .legacy-btn:focus-visible {
+    @apply outline-none ring-2 ring-offset-2 ring-gray-400;
+  }
+
+  .legacy-btn:disabled {
+    @apply cursor-not-allowed border-gray-400 bg-gray-200 text-gray-500 opacity-70;
+  }
+
+  .legacy-btn--primary {
+    @apply border-blue-900 bg-blue-800 text-white;
+  }
+
+  .legacy-btn--primary:hover:not(:disabled) {
+    @apply bg-blue-700 text-white;
+  }
+
+  .legacy-btn--danger {
+    @apply border-red-800 bg-red-700 text-white;
+  }
+
+  .legacy-btn--danger:hover:not(:disabled) {
+    @apply bg-red-600 text-white;
+  }
+
+  .legacy-btn--ghost {
+    @apply border-transparent bg-transparent text-gray-700;
+  }
+
+  .legacy-btn--ghost:hover:not(:disabled) {
+    @apply bg-gray-100 text-gray-900;
+  }
+
+  .legacy-btn--icon {
+    @apply border-none bg-transparent p-0 text-inherit shadow-none;
+  }
+
+  .legacy-btn--icon:hover:not(:disabled),
+  .legacy-btn--icon:focus-visible {
+    @apply bg-transparent shadow-none ring-0;
+  }
+
+  .legacy-btn--link {
+    @apply border-transparent bg-transparent text-blue-900 underline underline-offset-2;
+  }
+
+  .legacy-btn--link:hover:not(:disabled) {
+    @apply text-blue-800 bg-transparent;
+  }
+
+  button[class*="bg-"] {
+    background-color: #d9d9d9 !important;
+    border: 1px solid #a6a6a6 !important;
+    color: #111827 !important;
+    box-shadow: none !important;
+  }
+
+  button[class*="bg-"]:hover:not(:disabled) {
+    background-color: #c9c9c9 !important;
+    color: #0f172a !important;
+  }
+
+  button[class*="bg-"]:disabled {
+    background-color: #e3e3e3 !important;
+    color: #6b7280 !important;
+    border-color: #c5c5c5 !important;
+    opacity: 0.8;
+  }
+}
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-blue-950;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-blue-800;
+  }
+}
