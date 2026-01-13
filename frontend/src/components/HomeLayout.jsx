@@ -100,7 +100,7 @@ export default function HomeLayout({children}) {
         )}
 
         <aside 
-          className={`w-64 bg-gray-300 text-gray-900 p-4
+          className={`w-64 bg-gray-200 text-gray-900 p-4
                      fixed h-full z-20 
                      transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
                      transition-transform duration-300 ease-in-out 
@@ -144,7 +144,7 @@ export default function HomeLayout({children}) {
         </aside>
 
         <div className="flex-1 flex flex-col w-full md:w-auto min-w-0">
-          <header className="bg-gray-300 text-gray-900 p-4 flex justify-between items-center relative">
+          <header className="bg-gray-200 text-gray-900 p-4 flex justify-between items-center relative">
             
             <button 
               className="text-gray-900 text-2xl md:hidden"
@@ -194,7 +194,7 @@ export default function HomeLayout({children}) {
 
           <CartDrawer />
           
-          <footer className="bg-gray-300 text-gray-900 p-4 text-center text-sm">
+          <footer className="bg-gray-200 text-gray-900 p-4 text-center text-sm">
             2025 Mixon <br/>
             Made by <a href="https://github.com/Nikkkt" className="text-blue-700 hover:underline" target="_blank" rel="noopener noreferrer">Nikita Terpilovskyi</a>
           </footer>
