@@ -100,7 +100,7 @@ export default function HomeLayout({children}) {
         )}
 
         <aside 
-          className={`w-64 bg-gray-900 text-white p-4 
+          className={`w-64 bg-gray-200 text-gray-900 p-4 border-r border-gray-300
                      fixed h-full z-20 
                      transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
                      transition-transform duration-300 ease-in-out 
@@ -108,35 +108,35 @@ export default function HomeLayout({children}) {
         >
           <div className="mb-6 mt-6 flex justify-between items-center">
             <img src={logo} alt="Logo" className="h-18 w-auto" />
-            <button className="text-white text-2xl md:hidden" onClick={closeMobileSidebar}>
+            <button className="text-gray-900 text-2xl md:hidden" onClick={closeMobileSidebar}>
               <FaTimes />
             </button>
           </div>
           
           <nav>
-            <h3 className="mt-4 mb-4 text-xs font-semibold text-gray-400 uppercase">Акаунт</h3>
+            <h3 className="mt-4 mb-4 text-xs font-semibold text-gray-600 uppercase">Акаунт</h3>
             <ul className="space-y-1 mb-4">
-              <li><Link to="/orders" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaShoppingCart className="mr-2" />Замовлення товарів</Link></li>
-              <li><Link to="/orders-by-code" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaBarcode className="mr-2" />Замовлення по кодах</Link></li>
-              <li><Link to="/view-availability" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaEye className="mr-2" />Перегляд наявності</Link></li>
-              <li><Link to="/view-availability-by-group" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaList className="mr-2" />Перегляд наявності по групах</Link></li>
-              <li><Link to="/view-availability-by-code" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaCode className="mr-2" />Перегляд наявності по коду</Link></li>
+              <li><Link to="/orders" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaShoppingCart className="mr-2" />Замовлення товарів</Link></li>
+              <li><Link to="/orders-by-code" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaBarcode className="mr-2" />Замовлення по кодах</Link></li>
+              <li><Link to="/view-availability" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaEye className="mr-2" />Перегляд наявності</Link></li>
+              <li><Link to="/view-availability-by-group" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaList className="mr-2" />Перегляд наявності по групах</Link></li>
+              <li><Link to="/view-availability-by-code" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaCode className="mr-2" />Перегляд наявності по коду</Link></li>
               {(hasAdminRole || hasDepartmentRole) && (
-                <li><Link to="/availability-download" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaFileUpload className="mr-2" />Завантаження наявності</Link></li>
+                <li><Link to="/availability-download" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaFileUpload className="mr-2" />Завантаження наявності</Link></li>
               )}
-              <li><Link to="/order-history" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaHistory className="mr-2" />Історія замовлень</Link></li>
+              <li><Link to="/order-history" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaHistory className="mr-2" />Історія замовлень</Link></li>
             </ul>
 
             {hasAdminRole && (
               <>
-                <hr className="border-gray-700 my-2" />
-                <h3 className="mt-4 mb-4 text-xs font-semibold text-gray-400 uppercase">Адмін</h3>
+                <hr className="border-gray-300 my-2" />
+                <h3 className="mt-4 mb-4 text-xs font-semibold text-gray-600 uppercase">Адмін</h3>
                 <ul className="space-y-1">
-                  <li><Link to="/upload-products" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaUpload className="mr-2" />Завантаження товарів</Link></li>
-                  <li><Link to="/users" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaUsers className="mr-2" />Користувачі</Link></li>
-                  <li><Link to="/departments" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaBuilding className="mr-2" />Відділи</Link></li>
-                  <li><Link to="/directions" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaMapMarkerAlt className="mr-2" />Направлення</Link></li>
-                  <li><Link to="/product-groups" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm hover:bg-gray-700 rounded"><FaLayerGroup className="mr-2" />Групи товарів</Link></li>
+                  <li><Link to="/upload-products" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaUpload className="mr-2" />Завантаження товарів</Link></li>
+                  <li><Link to="/users" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaUsers className="mr-2" />Користувачі</Link></li>
+                  <li><Link to="/departments" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaBuilding className="mr-2" />Відділи</Link></li>
+                  <li><Link to="/directions" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaMapMarkerAlt className="mr-2" />Направлення</Link></li>
+                  <li><Link to="/product-groups" onClick={closeMobileSidebar} className="flex items-center p-1 text-sm text-gray-900 hover:bg-gray-300 rounded"><FaLayerGroup className="mr-2" />Групи товарів</Link></li>
                 </ul>
               </>
             )}
@@ -144,10 +144,10 @@ export default function HomeLayout({children}) {
         </aside>
 
         <div className="flex-1 flex flex-col w-full md:w-auto min-w-0">
-          <header className="bg-gray-800 text-white p-4 flex justify-between items-center relative">
+          <header className="bg-gray-200 text-gray-900 border-b border-gray-300 p-4 flex justify-between items-center relative">
             
             <button 
-              className="text-white text-2xl md:hidden"
+              className="text-gray-900 text-2xl md:hidden"
               onClick={() => setIsSidebarOpen(true)}
             >
               <FaBars />
@@ -171,7 +171,7 @@ export default function HomeLayout({children}) {
                 )}
               </button>
 
-              <div className="relative">
+              <div className="relative text-gray-900">
                 <FaUserCircle
                   className="text-2xl cursor-pointer"
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
@@ -194,9 +194,9 @@ export default function HomeLayout({children}) {
 
           <CartDrawer />
           
-          <footer className="bg-gray-800 text-white p-4 text-center text-sm">
+          <footer className="bg-gray-200 text-gray-900 border-t border-gray-300 p-4 text-center text-sm">
             2025 Mixon <br/>
-            Made by <a href="https://github.com/Nikkkt" className="text-blue-300 hover:underline" target="_blank" rel="noopener noreferrer">Nikita Terpilovskyi</a>
+            Made by <a href="https://github.com/Nikkkt" className="text-blue-700 hover:underline" target="_blank" rel="noopener noreferrer">Nikita Terpilovskyi</a>
           </footer>
         </div>
       </div>
