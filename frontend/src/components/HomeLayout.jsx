@@ -95,8 +95,8 @@ export default function HomeLayout({children}) {
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
-      <div className="flex flex-1 relative min-w-0 overflow-hidden">
+    <div className="flex flex-col min-h-screen">
+      <div className="flex flex-1 relative min-w-0">
         {isSidebarOpen && (
           <div 
             className="fixed inset-0 bg-black opacity-50 z-10 md:hidden"
@@ -212,7 +212,7 @@ export default function HomeLayout({children}) {
           </nav>
         </aside>
 
-        <div className="flex-1 flex flex-col w-full md:w-auto min-w-0 overflow-hidden">
+        <div className="flex-1 flex flex-col w-full md:w-auto min-w-0">
           <header className="bg-gray-300 text-gray-900 p-4 flex justify-between items-center relative shadow-sm">
             
             <button 
@@ -265,7 +265,7 @@ export default function HomeLayout({children}) {
             </div>
           </header>
 
-          <main className="flex-1 p-4 md:p-6 bg-gray-100 flex flex-col min-w-0 overflow-x-hidden overflow-y-auto">
+          <main className="flex-1 p-4 md:p-6 bg-gray-100 flex flex-col min-w-0 overflow-x-hidden">
             {children}
           </main>
 
