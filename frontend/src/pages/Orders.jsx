@@ -318,7 +318,7 @@ export default function Orders() {
 
   return (
     <HomeLayout>
-      <div className="bg-white p-4 md:p-6 rounded-lg shadow-lg flex-1 flex flex-col overflow-hidden">
+      <div className="bg-white p-4 md:p-6 rounded-lg shadow-lg flex-1 flex flex-col">
         <nav className="text-sm text-gray-500 mb-4" aria-label="Breadcrumb">
           <ol className="list-none p-0 inline-flex">
             <li className="flex items-center">
@@ -427,7 +427,7 @@ export default function Orders() {
         {isLoadingProducts ? (
           <p className="mt-8 text-center text-gray-600">Завантаження товарів...</p>
         ) : products.length > 0 ? (
-          <div className="mt-6 flex-1 overflow-auto rounded-2xl border border-gray-100 bg-white/80 p-4 shadow-inner"> 
+          <div className="mt-6 flex-1 rounded-2xl border border-gray-100 bg-white/80 p-4 shadow-inner">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-lg font-semibold text-gray-800">Результат підбору</p>
@@ -465,11 +465,11 @@ export default function Orders() {
                     <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Замовлення</th>
                     {canSeeStockAndPrices && (
                       <>
-                        <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Ціна</th>
-                        <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">% знижки</th>
-                        <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Ціна зі знижкою</th>
-                      </>
-                    )}
+                      <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Ціна</th>
+                      <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">% знижки</th>
+                      <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Ціна зі знижкою</th>
+                    </>
+                  )}
                     <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Вага (брутто)</th>
                     <th className="sticky top-0 border-b border-r border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 last:border-r-0">Об'єм</th>
                     <th className="sticky top-0 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 p-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">В кошик</th>
