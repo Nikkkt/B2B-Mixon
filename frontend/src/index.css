@@ -361,3 +361,15 @@
     @apply bg-gray-400;
   }
 }
+
+@layer utilities {
+  .table-scroll {
+    --table-scroll-min-height: 26rem;
+    --table-scroll-max-height: min(75vh, 900px);
+    min-height: var(--table-scroll-min-height);
+    max-height: var(--table-scroll-max-height);
+    overflow-y: auto;
+    overflow-x: auto;
+    overscroll-behavior: contain;
+  }
+}

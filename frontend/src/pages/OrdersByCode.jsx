@@ -400,7 +400,7 @@ export default function OrdersByCode() {
             </div>
             
             <div className="flex-1 overflow-auto min-h-0">
-              <div className="hidden md:block overflow-hidden rounded-2xl border border-gray-100 bg-white shadow">
+              <div className="hidden md:block table-scroll custom-scrollbar rounded-2xl border border-gray-100 bg-white shadow">
                 <table className="w-full text-sm align-middle">
                   <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                     <tr>

@@ -444,7 +444,7 @@ export default function ViewAvailabilityByGroup() {
                 <span className="text-xs text-gray-400">Показано філіалів: {branches.length}</span>
               </div>
 
-              <div className="hidden lg:block max-w-full overflow-x-auto overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow">
+              <div className="hidden lg:block table-scroll custom-scrollbar max-w-full overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow">
                 <table className="w-full text-sm align-middle min-w-[1400px]">
                   <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                     <tr>

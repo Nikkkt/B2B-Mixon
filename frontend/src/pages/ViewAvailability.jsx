@@ -602,7 +602,7 @@ export default function ViewAvailability() {
                   </span>
                 </div>
 
-                <div className="hidden md:block overflow-hidden rounded-2xl border border-gray-100 bg-white shadow">
+                <div className="hidden md:block table-scroll custom-scrollbar rounded-2xl border border-gray-100 bg-white shadow">
                   <table className="w-full text-sm align-middle">
                     <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                       <tr>
