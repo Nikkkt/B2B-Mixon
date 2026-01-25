@@ -397,16 +397,6 @@ public class OrdersCatalogService : IOrdersCatalogService
             throw new KeyNotFoundException("User not found.");
         }
 
-        var roles = user.Roles ?? Array.Empty<int>();
-        var isPrivileged = roles.Contains((int)UserRole.Admin) || roles.Contains((int)UserRole.Manager);
-
-        // Admin/manager: unrestricted (show all), so availability never disappears
-        if (isPrivileged)
-        {
-            return new List<Guid>();
-        }
-
-        // Non-privileged: prefer linked departments
         var preferred = new List<Guid>();
         if (user.DepartmentShopId.HasValue)
         {
@@ -415,6 +405,21 @@ public class OrdersCatalogService : IOrdersCatalogService
         if (user.DefaultBranchId.HasValue && !preferred.Contains(user.DefaultBranchId.Value))
         {
             preferred.Add(user.DefaultBranchId.Value);
+        }
+
+        if (preferred.Count > 0)
+        {
+            // Always prefer explicitly assigned shipping departments, even for privileged users
+            return preferred;
+        }
+
+        var roles = user.Roles ?? Array.Empty<int>();
+        var isPrivileged = roles.Contains((int)UserRole.Admin) || roles.Contains((int)UserRole.Manager);
+
+        // Admin/manager without assignment: unrestricted (show all)
+        if (isPrivileged)
+        {
+            return new List<Guid>();
         }
 
         return preferred;
