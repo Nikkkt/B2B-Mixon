@@ -76,17 +76,17 @@ public class EmailService : IEmailService
 
         try
         {
-            if (!string.IsNullOrWhiteSpace(_sendGridApiKey))
-            {
-                _logger.LogInformation("EmailService: sending via SendGrid to {To}", to);
-                await SendViaSendGridAsync(to, subject, body, attachments);
-                return;
-            }
-
             if (!string.IsNullOrWhiteSpace(_brevoApiKey))
             {
                 _logger.LogInformation("EmailService: sending via Brevo to {To}", to);
                 await SendViaBrevoAsync(to, subject, body, attachments);
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(_sendGridApiKey))
+            {
+                _logger.LogInformation("EmailService: sending via SendGrid to {To}", to);
+                await SendViaSendGridAsync(to, subject, body, attachments);
                 return;
             }
 
