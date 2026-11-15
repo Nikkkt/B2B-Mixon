@@ -17,6 +17,9 @@ public class EmailService : IEmailService
     private readonly HttpClient _httpClient;
     private readonly ILogger<EmailService> _logger;
     private readonly string? _sendGridApiKey;
+    private readonly string? _brevoApiKey;
+    private readonly string? _brevoFromEmail;
+    private readonly string _brevoFromName;
     private readonly string? _fromEmail;
     private readonly string _fromName;
 
@@ -25,6 +28,11 @@ public class EmailService : IEmailService
         _httpClient = httpClient;
         _logger = logger;
         _sendGridApiKey = Environment.GetEnvironmentVariable("SENDGRID_API_KEY");
+        _brevoApiKey = Environment.GetEnvironmentVariable("BREVO_API_KEY");
+        _brevoFromEmail = GetEnv("BREVO_FROM_EMAIL", "Brevo__FromEmail");
+        _brevoFromName = Environment.GetEnvironmentVariable("BREVO_FROM_NAME")
+            ?? Environment.GetEnvironmentVariable("Brevo__FromName")
+            ?? "Mixon B2B";
         _fromEmail = Environment.GetEnvironmentVariable("SENDGRID_FROM_EMAIL")
             ?? Environment.GetEnvironmentVariable("Email__FromEmail")
             ?? Environment.GetEnvironmentVariable("EMAIL_USER");
@@ -75,7 +83,14 @@ public class EmailService : IEmailService
                 return;
             }
 
-            // If no SendGrid API key, require SMTP to be configured; otherwise fail fast
+            if (!string.IsNullOrWhiteSpace(_brevoApiKey))
+            {
+                _logger.LogInformation("EmailService: sending via Brevo to {To}", to);
+                await SendViaBrevoAsync(to, subject, body, attachments);
+                return;
+            }
+
+            // If no SendGrid/Brevo API key, require SMTP to be configured; otherwise fail fast
             var host = GetEnv("EMAIL_HOST", "Email__SmtpHost", "Email__Host");
             if (string.IsNullOrWhiteSpace(host))
             {
@@ -152,6 +167,59 @@ public class EmailService : IEmailService
         }
 
         _logger.LogInformation("SendGrid email sent to {To} with status {StatusCode}", to, response.StatusCode);
+    }
+
+    private async Task SendViaBrevoAsync(string to, string subject, string body, IReadOnlyCollection<FileDownloadDto>? attachments)
+    {
+        var fromEmail = _brevoFromEmail ?? _fromEmail;
+        if (string.IsNullOrWhiteSpace(fromEmail))
+        {
+            _logger.LogError("Brevo configuration is incomplete: FromEmail missing.");
+            throw new AuthException("Email service is not configured.", StatusCodes.Status503ServiceUnavailable);
+        }
+
+        var payload = new Dictionary<string, object>
+        {
+            ["sender"] = new { name = _brevoFromName, email = fromEmail },
+            ["to"] = new[] { new { email = to } },
+            ["subject"] = subject,
+            ["htmlContent"] = body,
+            ["textContent"] = StripHtml(body)
+        };
+
+        if (attachments != null && attachments.Count > 0)
+        {
+            var normalized = attachments
+                .Where(file => file != null && file.Content.Length > 0)
+                .Select(file => new
+                {
+                    content = Convert.ToBase64String(file.Content),
+                    name = string.IsNullOrWhiteSpace(file.FileName) ? "attachment" : file.FileName
+                })
+                .ToArray();
+
+            if (normalized.Length > 0)
+            {
+                payload["attachment"] = normalized;
+            }
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.brevo.com/v3/smtp/email")
+        {
+            Content = JsonContent.Create(payload)
+        };
+
+        request.Headers.Add("api-key", _brevoApiKey);
+
+        var response = await _httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            var details = await response.Content.ReadAsStringAsync();
+            _logger.LogError("Brevo email failed with {StatusCode}: {Body}", response.StatusCode, details);
+            throw new AuthException("Unable to send email at this time. Please try again later.", StatusCodes.Status503ServiceUnavailable);
+        }
+
+        _logger.LogInformation("Brevo email sent to {To} with status {StatusCode}", to, response.StatusCode);
     }
 
     private async Task SendViaSmtpAsync(string to, string subject, string body, IReadOnlyCollection<FileDownloadDto>? attachments)
